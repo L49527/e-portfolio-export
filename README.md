@@ -32,7 +32,7 @@
 直接訪問 GitHub Pages 部署版本：
 
 ```
-https://[你的使用者名稱].github.io/e-portfolio-web-tool/
+https://L49527.github.io/e-portfolio-web-tool/
 ```
 
 ### 本地使用
@@ -163,3 +163,4 @@ A: 檔案已使用 UTF-8 with BOM 編碼，Excel 應該能正確開啟。如果�
 ---
 
 **由 Python 版本轉換而來 | 醫學影像部評量分析工具**
+
