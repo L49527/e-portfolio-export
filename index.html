@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="E-Portfolio 評量表單匯出工具 - 完全客戶端處理，資料不上傳雲端">
+    <title>E-Portfolio 匯出助手 | 醫學影像部評量分析工具</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo-icon">📋</div>
+                    <div>
+                        <h1 class="title">E-Portfolio 匯出助手</h1>
+                        <p class="subtitle">醫學影像部評量分析工具 v1.0 Web</p>
+                    </div>
+                </div>
+                <div class="privacy-badge">
+                    <span class="badge-icon">🔒</span>
+                    <span>完全客戶端處理</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Upload Section -->
+            <section class="upload-section">
+                <div id="dropZone" class="drop-zone">
+                    <div class="drop-zone-icon">📁</div>
+                    <h2 class="drop-zone-title">上傳 HTML / CSV 檔案</h2>
+                    <p class="drop-zone-text">拖放檔案到此處或點擊選擇檔案</p>
+                    <p class="drop-zone-hint">支援多檔案上傳 • 接受 .html、.htm 和 .csv 格式</p>
+                    <input type="file" id="fileInput" accept=".html,.htm,.csv" multiple style="display: none;">
+                </div>
+
+                <!-- Status Message -->
+                <div id="statusMessage" class="status" style="display: none;"></div>
+            </section>
+
+            <!-- Preview Section -->
+            <section id="previewSection" class="preview-section" style="display: none;">
+                <div class="section-header">
+                    <div>
+                        <h2 class="section-title">資料預覽</h2>
+                        <p class="section-subtitle">已解析 <span id="fileCount">0</span> 個檔案</p>
+                    </div>
+                    <button id="exportBtn" class="export-btn" disabled>
+                        <span class="btn-icon">💾</span>
+                        匯出 CSV
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table id="dataTable" class="data-table">
+                        <thead>
+                            <tr></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Instructions -->
+            <section class="instructions">
+                <h3 class="instructions-title">使用說明</h3>
+                <div class="instructions-grid">
+                    <div class="instruction-card">
+                        <div class="instruction-number">1</div>
+                        <div class="instruction-content">
+                            <h4>上傳檔案</h4>
+                            <p>將 e-portfolio 的 HTML 評量表單檔案拖放到上方區域，或點擊選擇檔案</p>
+                        </div>
+                    </div>
+                    <div class="instruction-card">
+                        <div class="instruction-number">2</div>
+                        <div class="instruction-content">
+                            <h4>預覽資料</h4>
+                            <p>系統會自動解析表單內容，包含學員資訊、評分、回饋等項目</p>
+                        </div>
+                    </div>
+                    <div class="instruction-card">
+                        <div class="instruction-number">3</div>
+                        <div class="instruction-content">
+                            <h4>匯出 CSV</h4>
+                            <p>點擊「匯出 CSV」按鈕，下載完整的分析結果檔案</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="privacy-notice">
+                    <div class="notice-icon">ℹ️</div>
+                    <div class="notice-content">
+                        <h4>隱私保證</h4>
+                        <p>所有檔案處理都在您的瀏覽器中完成，<strong>不會上傳任何資料到伺服器</strong>。您的資料完全保留在本機電腦中。</p>
+                    </div>
+                </div>
+
+                <div class="supported-forms">
+                    <h4>支援的表單類型</h4>
+                    <ul class="form-types-list">
+                        <li>✅ DOPS 直接觀察操作技巧評量</li>
+                        <li>✅ Mini-CEX 臨床評核測驗</li>
+                        <li>✅ CBD 案例討論評量</li>
+                        <li>✅ EPA 工作職場評估</li>
+                        <li>✅ Milestone 里程碑評量</li>
+                        <li>✅ 一般評量表單</li>
+                        <li>✅ 整體實習成效回饋</li>
+                        <li>✅ 測驗查詢資料 (轉存 CSV)</li>
+                    </ul>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>© 2026 E-Portfolio 匯出助手 | 醫學影像部評量分析工具</p>
+            <p class="footer-note">開源專案 • 完全免費使用 • 資料本機處理</p>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="parser.js"></script>
+    <script src="parser-exam.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
