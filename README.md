@@ -95,33 +95,6 @@ e-portfolio-web-tool/
         └── deploy.yml  # GitHub Actions 自動部署
 ```
 
-## 🚢 部署到 GitHub Pages
-
-### 方法一：使用 GitHub Actions（推薦）
-
-1. 將專案推送到 GitHub：
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git branch -M main
-   git remote add origin https://github.com/[你的使用者名稱]/e-portfolio-web-tool.git
-   git push -u origin main
-   ```
-
-2. 在 GitHub 專案設定中啟用 GitHub Pages：
-   - 前往 Settings > Pages
-   - Source 選擇 "GitHub Actions"
-
-3. 推送程式碼後會自動部署
-
-### 方法二：手動部署
-
-1. 前往 GitHub 專案的 Settings > Pages
-2. Source 選擇 `main` 分支
-3. 資料夾選擇 `/ (root)`
-4. 點擊 Save
-
 ## 🔄 版本歷史
 
 ### v1.0 (2026-01-08)
@@ -163,4 +136,5 @@ A: 檔案已使用 UTF-8 with BOM 編碼，Excel 應該能正確開啟。如果�
 ---
 
 **由 Python 版本轉換而來 | 醫學影像部評量分析工具**
+
 
