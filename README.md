@@ -1,140 +1,86 @@
-# E-Portfolio 匯出助手 📋
+# e portfolio export助手 v1.0 (Refactored)
 
-> 醫學影像部評量表單分析工具 - 完全客戶端處理，資料不上傳雲端
+> 醫事放射 UGY 實習評量表 HTML 批次分析與匯出工具
 
-[![GitHub Pages](https://img.shields.io/badge/GitHub-Pages-blue)](https://github.com)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0-orange)](https://github.com)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0-green.svg)
 
-## ✨ 功能特色
+## 📋 功能特色
 
-- 🔒 **完全客戶端處理** - 所有資料都在您的瀏覽器中處理，不會上傳到任何伺服器
-- 📁 **多檔案支援** - 支援批次上傳和處理多個 HTML 評量表單
-- 📊 **即時預覽** - 立即查看解析結果的完整資料表格
-- 💾 **CSV 匯出** - 一鍵匯出為 Excel 可編輯的 CSV 格式
-- 🎨 **現代化介面** - 深色主題，直覺易用的操作體驗
-- 📱 **回應式設計** - 支援桌面、平板等多種裝置
+### 核心功能
+- **批次匯入** - 拖放多個 HTML 評量表檔案，自動解析
+- **智慧分類** - 自動識別評量類型（總評量表、學員回饋單、單站評量、EPA、基礎課程）
+- **科別判定** - 根據表單編號自動歸類至影像醫學科、核子醫學科、放射治療科、心導管室
+- **學員/教師識別** - 通用模式自動提取學員與負責教師姓名
+- **現代化架構** - 採用模組化設計 (HTML/CSS/JS 分離)，易於維護與擴充 (New!)
 
-## 🏥 支援的表單類型
+### v1.0 重構更新 (2026-02-09)
+- ✅ **模組化架構** - 將原本單一 HTML 拆分為 `index.html`, `style.css`, `parser.js`, `app.js`
+- ✅ **代碼優化** - 邏輯與視圖分離，提升效能與可讀性
+- ✅ **完整功能保留** - 繼承 v5.4 所有解析邏輯與功能
+- ✅ **EPA OPA 分數解析** - 正確提取 OPA1-3 分數
+- ✅ **基礎課程統計** - 自動解析通過項目數
 
-- ✅ DOPS (Direct Observation of Procedural Skills) 直接觀察操作技巧評量
-- ✅ Mini-CEX (Mini-Clinical Evaluation Exercise) 臨床評核測驗
-- ✅ CBD (Case-Based Discussion) 案例討論評量
-- ✅ EPA (Entrustable Professional Activities) 工作職場評估
-- ✅ Milestone 里程碑評量
-- ✅ 一般評量表單
-- ✅ 整體實習成效回饋
+## 🚀 快速開始
 
-## 🚀 使用方法
+### 使用方式
+直接用瀏覽器開啟資料夾中的 `index.html` 即可使用。
 
-### 線上使用（推薦）
-
-直接訪問 GitHub Pages 部署版本：
+### 檔案結構說明
+本工具已重構為現代化網頁結構：
 
 ```
-https://L49527.github.io/e-portfolio-web-tool/
+├── index.html       # 主程式入口 (請開啟此檔案)
+├── style.css        # 介面樣式表
+├── parser.js        # 核心解析邏輯 (CSV/HTML 處理)
+├── app.js           # 應用程式控制邏輯 (UI 互動)
+└── README.md        # 本說明文件
 ```
 
-### 本地使用
+## 📊 支援的表單類型
 
-1. 下載或克隆此專案
-2. 在瀏覽器中開啟 `index.html`
-3. 上傳您的 HTML 評量表單檔案
-4. 查看解析結果並匯出 CSV
+| 類型 | 範例 |
+|------|------|
+| 總評量表 | 成績總評表、學期測驗及實務操作評核成績紀錄表 |
+| 單站評量 | DOPS、mini-CEX、CbD |
+| EPA | EPA 評量表 (含 OPA 分數) |
+| 基礎課程 | 臨床實習項目及實習成效評量 (含通過狀態) |
+| 學員回饋 | 實習生總回饋、整體實習成效回饋 |
 
-## 📖 操作步驟
+## 📁 匯出格式
 
-1. **上傳檔案** 📤
-   - 將下載的 e-portfolio HTML 評量表單檔案拖放到上傳區域
-   - 或點擊上傳區域選擇檔案（支援多選）
+CSV 匯出包含以下欄位：
 
-2. **預覽資料** 👀
-   - 系統自動解析表單內容
-   - 包含學員姓名、教師、日期、評分、回饋等完整資訊
-
-3. **匯出 CSV** 💾
-   - 點擊「匯出 CSV」按鈕
-   - 下載完整的分析結果檔案
-   - 可用 Excel 或其他試算表軟體開啟
-
-## 🔐 隱私保證
-
-**所有檔案處理都在您的瀏覽器中完成，不會上傳任何資料到伺服器。**
-
-此工具使用純前端技術（HTML + CSS + JavaScript）開發：
-- 沒有後端伺服器
-- 沒有資料庫連接
-- 沒有網路請求（除了載入頁面本身）
-- 您的資料完全保留在本機電腦中
-
-您可以：
-- 開啟瀏覽器的開發者工具查看網路請求
-- 離線使用此工具（下載後本地開啟）
-- 查看原始碼確認安全性
+| 欄位 | 說明 |
+|------|------|
+| 執行日期 | 評量日期 |
+| 學員姓名 | 學員姓名 |
+| 教師/主持人| 評量教師 |
+| 類型 | 評量類型 |
+| 科別 | 訓練科別 |
+| 表單標題 | 完整表單名稱 |
+| 總分 | 分數 (基礎課程顯示通過數，EPA 留空) |
+| OPA1-3 | EPA 專用 OPA 分數 |
+| 各站成績 | 分項成績詳情 |
+| 表現良好 | 教師回饋優點 |
+| 建議加強 | 教師建議改進 |
+| 學員回饋 | 學員心得與期許 |
 
 ## 🛠️ 技術架構
 
-- **HTML5** - 結構與內容
-- **CSS3** - 現代化深色主題設計
-- **JavaScript (ES6+)** - 客戶端邏輯
-- **DOMParser API** - HTML 解析
-- **File API** - 檔案讀取
-- **Blob API** - CSV 匯出
+- **前端**: 純 HTML5 + Vanilla ES6 JavaScript
+- **樣式**: TailwindCSS (CDN) + Custom CSS (`style.css`)
+- **圖表**: Chart.js (CDN)
+- **無後端依賴** - 所有處理皆在瀏覽器本地完成，保障資料隱私
 
-## 📦 專案結構
+## 🔒 隱私說明
 
-```
-e-portfolio-web-tool/
-├── index.html          # 主頁面
-├── style.css           # 樣式表
-├── parser.js           # HTML 解析引擎
-├── app.js              # 應用程式邏輯
-├── README.md           # 專案說明
-└── .github/
-    └── workflows/
-        └── deploy.yml  # GitHub Actions 自動部署
-```
+所有資料處理皆在本地瀏覽器完成，**不會上傳任何資料至伺服器**。
 
-## 🔄 版本歷史
+## 📝 授權
 
-### v1.0 (2026-01-08)
-- ✨ 首次發布
-- 🎨 現代化深色主題介面
-- 📊 支援所有主要評量表單類型
-- 💾 CSV 匯出功能
-- 🔒 完全客戶端處理
-
-## 🤝 貢獻
-
-歡迎提交 Issue 和 Pull Request！
-
-## 📄 授權
-
-MIT License - 自由使用、修改和分發
-
-## 💬 常見問題
-
-**Q: 我的資料真的不會上傳到雲端嗎？**  
-A: 是的！所有處理都在您的瀏覽器中完成。您可以開啟開發者工具檢查網路請求，或離線使用此工具。
-
-**Q: 支援哪些瀏覽器？**  
-A: 支援所有現代瀏覽器，包括 Chrome、Firefox、Safari、Edge 等。
-
-**Q: 可以處理多少個檔案？**  
-A: 理論上沒有限制，但處理大量檔案時可能會受到瀏覽器記憶體限制。建議一次處理不超過 100 個檔案。
-
-**Q: CSV 檔案用 Excel 開啟亂碼怎麼辦？**  
-A: 檔案已使用 UTF-8 with BOM 編碼，Excel 應該能正確開啟。如果仍有問題，請嘗試：
-1. 用記事本開啟 CSV 檔案
-2. 另存新檔，編碼選擇 UTF-8
-3. 再用 Excel 開啟
-
-## 📧 聯絡方式
-
-如有問題或建議，請開啟 GitHub Issue。
+MIT License
 
 ---
 
-**由 Python 版本轉換而來 | 醫學影像部評量分析工具**
-
-
+**輔大醫院 影像醫學科** | Made with ❤️ for UGY Training
