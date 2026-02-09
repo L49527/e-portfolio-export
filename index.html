@@ -4,135 +4,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="E-Portfolio 評量表單匯出工具 - 完全客戶端處理，資料不上傳雲端">
-    <title>E-Portfolio 匯出助手 | 醫學影像部評量分析工具</title>
+    <title>e portfolio export助手 v1.0</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap"
-        rel="stylesheet">
 </head>
 
-<body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <div class="logo-section">
-                    <div class="logo-icon">📋</div>
-                    <div>
-                        <h1 class="title">E-Portfolio 匯出助手</h1>
-                        <p class="subtitle">醫學影像部評量分析工具 v1.0 Web</p>
-                    </div>
-                </div>
-                <div class="privacy-badge">
-                    <span class="badge-icon">🔒</span>
-                    <span>完全客戶端處理</span>
-                </div>
+<body class="h-screen flex flex-col text-slate-800 bg-slate-50">
+
+    <header class="bg-slate-900 text-white px-6 py-3 flex justify-between items-center shadow-xl z-[200] flex-none">
+        <div class="flex items-center gap-4">
+            <div class="bg-rose-500 p-0.5 rounded-lg shadow-lg">
+                <div
+                    class="bg-slate-900 rounded p-1.5 w-8 h-8 flex items-center justify-center font-bold text-rose-400 text-lg font-mono tracking-tighter">
+                    EP</div>
             </div>
-        </header>
+            <div>
+                <h1 class="text-base font-black text-white leading-tight">e portfolio export助手 <span
+                        class="text-rose-400">v1.0</span></h1>
+                <p class="text-[10px] text-slate-400 italic tracking-widest uppercase">與 v26.4 評量展示助手相容</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="exportToCSV()"
+                class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-xl font-black transition shadow-md text-sm"><i
+                    class="fas fa-file-csv"></i> 匯出 CSV</button>
+            <button onclick="showClearConfirm()"
+                class="bg-slate-800 hover:bg-red-600 px-3 py-1.5 rounded-lg text-white"><i class="fas fa-trash-alt"></i>
+                清空</button>
+        </div>
+    </header>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Upload Section -->
-            <section class="upload-section">
-                <div id="dropZone" class="drop-zone">
-                    <div class="drop-zone-icon">📁</div>
-                    <h2 class="drop-zone-title">上傳 HTML / CSV 檔案</h2>
-                    <p class="drop-zone-text">拖放檔案到此處或點擊選擇檔案</p>
-                    <p class="drop-zone-hint">支援多檔案上傳 • 接受 .html、.htm 和 .csv 格式</p>
-                    <input type="file" id="fileInput" accept=".html,.htm,.csv" multiple style="display: none;">
-                </div>
-
-                <!-- Status Message -->
-                <div id="statusMessage" class="status" style="display: none;"></div>
-            </section>
-
-            <!-- Preview Section -->
-            <section id="previewSection" class="preview-section" style="display: none;">
-                <div class="section-header">
-                    <div>
-                        <h2 class="section-title">資料預覽</h2>
-                        <p class="section-subtitle">已解析 <span id="fileCount">0</span> 個檔案</p>
-                    </div>
-                    <button id="exportBtn" class="export-btn" disabled>
-                        <span class="btn-icon">💾</span>
-                        匯出 CSV
+    <div id="appContainer" class="flex flex-1 overflow-hidden relative">
+        <div id="sidebar" class="bg-white border-r border-slate-200 flex flex-col shadow-xl z-30 relative">
+            <button onclick="toggleSidebar()"
+                class="w-full py-8 flex flex-col items-center gap-4 hover:bg-rose-50 text-rose-600 border-b border-slate-100 flex-none">
+                <i id="sidebarIcon" class="fas fa-angles-right text-xl"></i>
+                <span id="sidebarBtnLabel" class="text-[9px] font-black uppercase">開啟匯入區</span>
+            </button>
+            <div id="sidebarContent" class="p-6 flex-1 overflow-hidden flex flex-col">
+                <div id="dropZone"
+                    class="border-4 border-dashed border-slate-200 rounded-[2.5rem] flex-1 flex flex-col items-center justify-center p-6 transition-all hover:border-rose-400 hover:bg-rose-50 cursor-pointer bg-slate-50">
+                    <i class="fas fa-cloud-arrow-up text-7xl text-slate-200 mb-6"></i>
+                    <p class="text-xl font-black text-slate-500 text-center leading-tight">丟入 HTML 檔案<br><span
+                            class="text-sm text-slate-400">或資料夾</span></p>
+                    <input type="file" id="fileInput" multiple accept=".html,.htm" class="hidden">
+                    <input type="file" id="folderInput" webkitdirectory directory multiple class="hidden">
+                    <button onclick="event.stopPropagation(); document.getElementById('folderInput').click();"
+                        class="mt-4 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-xl font-bold text-sm transition shadow-md">
+                        <i class="fas fa-folder-open mr-2"></i>選擇資料夾
                     </button>
                 </div>
+            </div>
+        </div>
 
-                <div class="table-container">
-                    <table id="dataTable" class="data-table">
-                        <thead>
-                            <tr></tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+        <div class="flex-1 flex flex-col bg-slate-100 overflow-hidden relative">
+            <div
+                class="bg-white px-10 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4 shadow-sm z-10 font-black">
+                <div class="flex flex-wrap items-center gap-3">
+                    <button onclick="setFilter('all')" id="f_all" class="filter-btn active-filter">全部</button>
+                    <button onclick="setFilter('Summary')" id="f_summary" class="filter-btn text-blue-800">成績總表</button>
+                    <button onclick="setFilter('DOPS')" id="f_dops" class="filter-btn text-purple-600">評量表</button>
+                    <div class="h-6 w-px bg-slate-200 mx-2"></div>
+                    <select id="studentFilter" onchange="setStudentFilter(this.value)"
+                        class="custom-select border-blue-200 text-blue-800">
+                        <option value="all">所有學員</option>
+                    </select>
+                    <select id="deptFilter" onchange="setDeptFilter(this.value)"
+                        class="custom-select border-indigo-200 text-indigo-800">
+                        <option value="all">所有科別</option>
+                    </select>
                 </div>
-            </section>
-
-            <!-- Instructions -->
-            <section class="instructions">
-                <h3 class="instructions-title">使用說明</h3>
-                <div class="instructions-grid">
-                    <div class="instruction-card">
-                        <div class="instruction-number">1</div>
-                        <div class="instruction-content">
-                            <h4>上傳檔案</h4>
-                            <p>將 e-portfolio 的 HTML 評量表單檔案拖放到上方區域，或點擊選擇檔案</p>
-                        </div>
-                    </div>
-                    <div class="instruction-card">
-                        <div class="instruction-number">2</div>
-                        <div class="instruction-content">
-                            <h4>預覽資料</h4>
-                            <p>系統會自動解析表單內容，包含學員資訊、評分、回饋等項目</p>
-                        </div>
-                    </div>
-                    <div class="instruction-card">
-                        <div class="instruction-number">3</div>
-                        <div class="instruction-content">
-                            <h4>匯出 CSV</h4>
-                            <p>點擊「匯出 CSV」按鈕，下載完整的分析結果檔案</p>
-                        </div>
-                    </div>
+                <button onclick="toggleSort()"
+                    class="bg-slate-50 hover:bg-rose-50 text-slate-600 px-5 py-2.5 rounded-2xl text-sm font-black border border-slate-200 shadow-sm transition-colors">
+                    <i class="fas fa-arrows-up-down text-rose-500" id="sortIcon"></i>
+                    <span id="sortText">日期：舊到新</span>
+                </button>
+            </div>
+            <div class="flex-1 p-6 overflow-y-auto" id="historyContainer">
+                <div id="emptyState"
+                    class="h-full flex flex-col items-center justify-center text-slate-300 opacity-40 text-center"><i
+                        class="fas fa-layer-group text-9xl mb-6"></i>
+                    <p class="text-xl font-light tracking-widest uppercase italic">請匯入評量表檔案</p>
                 </div>
-
-                <div class="privacy-notice">
-                    <div class="notice-icon">ℹ️</div>
-                    <div class="notice-content">
-                        <h4>隱私保證</h4>
-                        <p>所有檔案處理都在您的瀏覽器中完成，<strong>不會上傳任何資料到伺服器</strong>。您的資料完全保留在本機電腦中。</p>
-                    </div>
-                </div>
-
-                <div class="supported-forms">
-                    <h4>支援的表單類型</h4>
-                    <ul class="form-types-list">
-                        <li>✅ DOPS 直接觀察操作技巧評量</li>
-                        <li>✅ Mini-CEX 臨床評核測驗</li>
-                        <li>✅ CBD 案例討論評量</li>
-                        <li>✅ EPA 工作職場評估</li>
-                        <li>✅ Milestone 里程碑評量</li>
-                        <li>✅ 一般評量表單</li>
-                        <li>✅ 整體實習成效回饋</li>
-                        <li>✅ 測驗查詢資料 (轉存 CSV)</li>
-                    </ul>
-                </div>
-            </section>
-        </main>
-
-        <!-- Footer -->
-        <footer class="footer">
-            <p>© 2026 E-Portfolio 匯出助手 | 醫學影像部評量分析工具</p>
-            <p class="footer-note">開源專案 • 完全免費使用 • 資料本機處理</p>
-        </footer>
+            </div>
+        </div>
     </div>
 
-    <!-- Scripts -->
+    <!-- UI Overlay -->
+    <div id="progressOverlay"
+        class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[300] flex items-center justify-center">
+        <div
+            class="bg-white p-8 rounded-[3rem] shadow-2xl flex flex-col items-center max-w-sm w-full border border-slate-100">
+            <div class="loading-ring mb-4"></div>
+            <p id="progressText" class="font-bold text-lg text-slate-700">解析中...</p>
+            <div class="w-full bg-slate-100 h-2 rounded-full mt-6 overflow-hidden">
+                <div id="progressBar" class="bg-rose-500 h-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="customModal"
+        class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[500] flex items-center justify-center">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full mx-4">
+            <h3 class="text-xl font-black mb-4">確定清空所有資料？</h3>
+            <div class="flex gap-4"><button onclick="hideModal()"
+                    class="flex-1 py-3 rounded-xl font-bold bg-slate-100">取消</button><button onclick="clearHistory()"
+                    class="flex-1 py-3 rounded-xl font-bold bg-red-600 text-white">確定</button></div>
+        </div>
+    </div>
+
     <script src="parser.js"></script>
-    <script src="parser-exam.js"></script>
     <script src="app.js"></script>
 </body>
 
