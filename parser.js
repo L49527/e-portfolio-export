@@ -24,6 +24,12 @@ function analyzeHTML(raw) {
         if (ut.includes('醫事放射實習生總回饋') || ut.includes('整體實習成效回饋') || ut.includes('回饋單') || ut.includes('FEEDBACK') || ut.includes('反應表')) {
             item.type = '學員回饋單';
         }
+        else if (ut.includes('問卷') || ut.includes('滿意度')) {
+            item.type = '問卷調查';
+        }
+        else if (ut.includes('導師輔導') || ut.includes('輔導紀錄')) {
+            item.type = '輔導紀錄';
+        }
         // 總評量表類
         else if (ut.includes('總評量表') || ut.includes('成績總評') || ut.includes('到職訓練') || ut.includes('職前自我評估') || ut.includes('學期測驗') || ut.includes('成績紀錄表')) {
             item.type = '實習總評量表';
@@ -193,14 +199,41 @@ function analyzeHTML(raw) {
             if (labelMatch) item.studentName = labelMatch[1];
         }
 
-        // 方法4: 從 SingleLineString input 抓取任意學員
+        // 方法4: 從 SingleLineString input 抓取任意學員 (排除已知導師)
         if (item.studentName === '未知') {
-            let inputMatch = raw.match(/SingleLineString[^"]*[^>]*value="([\u4e00-\u9fa5]{2,10})"/i);
-            if (inputMatch) item.studentName = inputMatch[1];
+            let inputs = [...raw.matchAll(/SingleLineString[^"]*[^>]*value="([\u4e00-\u9fa5]{2,10})"/gi)];
+            if (inputs.length > 0) {
+                for (let inp of inputs) {
+                    if (!inp[1].includes('林國基')) {
+                        item.studentName = inp[1]; break;
+                    }
+                }
+            }
         }
 
         // 負責教師提取邏輯
-        if (raw.includes('2.1.0') || ut.includes('職前自我評估')) {
+        // 方法1: 從「導師姓名」標籤或對應的 input 抓取 - 增加 DOM 輔助
+        let teacherLabelMatch = raw.match(/(?:導師姓名|負責導師)[:：]\s*(?:<[^>]+>)*\s*([\u4e00-\u9fa5]{2,10})/i) ||
+            raw.match(/name="SingleLineString[^"]*(?:導師|教師|負責人)[^"]*"[^>]*value="([\u4e00-\u9fa5]{2,10})"/i);
+
+        if (!teacherLabelMatch) {
+            // DOM 備援：搜尋內容包含「導師姓名」的 label 之後的 input
+            let allGroups = doc.querySelectorAll('.form-group');
+            for (let group of allGroups) {
+                let labelText = group.querySelector('label')?.innerText || '';
+                if (labelText.includes('導師姓名') || labelText.includes('負責導師') || labelText.includes('指導教師姓名')) {
+                    let inputVal = group.querySelector('input[type="text"]')?.value;
+                    if (inputVal && inputVal.trim()) {
+                        item.teacherName = inputVal.trim();
+                        break;
+                    }
+                }
+            }
+        } else {
+            item.teacherName = teacherLabelMatch[1];
+        }
+
+        if (item.teacherName === '未註明' && (raw.includes('2.1.0') || ut.includes('職前自我評估'))) {
             // 規則：2.1.0 或 職前自我評估 抓流程中的「計畫導師」
             // 尋找箭頭後方的姓名且緊跟著(計畫導師)
             let mentorMatch = cleanText.match(/(?:→|->)\s*([\u4e00-\u9fa5]{2,10})\s*\(計畫導師\)/);
@@ -220,8 +253,13 @@ function analyzeHTML(raw) {
 
         if (item.teacherName === '未註明') {
             // 備選流程抓取 (排除主持人)
-            let flowMatch = cleanText.match(/([\u4e00-\u9fa5]{2,10})\s*\([^)]*(?:教師|導師|負責人|管理員)[^)]*\)\s*(?:→|->)\s*([\u4e00-\u9fa5]{2,10})\s*\(學員\)/i);
-            if (flowMatch) item.teacherName = flowMatch[1];
+            // 模式1: Teacher -> Student
+            let flowMatch1 = cleanText.match(/([\u4e00-\u9fa5]{2,10})\s*\([^)]*(?:教師|導師|負責人|管理員)[^)]*\)\s*(?:→|->)\s*([\u4e00-\u9fa5]{2,10})\s*\(學員\)/i);
+            if (flowMatch1) item.teacherName = flowMatch1[1];
+
+            // 模式2: Student -> Teacher (輔導紀錄常見)
+            let flowMatch2 = cleanText.match(/([\u4e00-\u9fa5]{2,10})\s*\(學員\)\s*(?:→|->)\s*([\u4e00-\u9fa5]{2,10})\s*\([^)]*(?:教師|導師|負責人|管理員)[^)]*\)/i);
+            if (flowMatch2 && item.teacherName === '未註明') item.teacherName = flowMatch2[2];
         }
 
         // --- 4. 分數計算 ---
@@ -230,7 +268,7 @@ function analyzeHTML(raw) {
             let m = raw.match(r); return m ? m[1] : "";
         };
 
-        if (item.isInternGeneralFeedback) {
+        if (item.isInternGeneralFeedback || item.type === '輔導紀錄') {
             item.scoreRaw = "";
         } else if (item.title.includes('到職訓練') || item.title.includes('職前自我評估')) {
             let pts = 0, count = 0;
@@ -245,20 +283,43 @@ function analyzeHTML(raw) {
             for (const m of matches) { if (parseInt(m[1]) <= 10) scores.push(parseInt(m[1])); }
             if (scores.length > 0) item.scoreRaw = ((scores.reduce((a, b) => a + b, 0) / scores.length) * 10).toFixed(0);
         } else {
-            // v1.0: 擴充分數提取模式，支援更多評量表格式
-            let totalMatch = cleanText.match(/(?:評量總分數|成績|平均分數|總分|整體評分|分數)[:：\s]*(\d{1,3}(?:\.\d+)?)/i);
-            if (!totalMatch) {
-                // 嘗試匹配 DOPS/Mini-CEX 格式 (1-10 量表)
-                let scaleScores = [];
-                let scaleMatches = raw.matchAll(/checked[\s\S]{0,50}?value="(\d+)"[\s\S]{0,100}?data-test="[\d.]+"/gi);
-                for (const m of scaleMatches) {
-                    let v = parseInt(m[1]);
-                    if (v >= 1 && v <= 10) scaleScores.push(v);
+            // v1.2: 擴充分數提取模式，支援滿意度問卷等更多格式
+            let totalMatch = cleanText.match(/(?:評量總分數|滿意度總分數|成績|平均分數|總分|整體評分|分數)[:：\s]*(\d{1,3}(?:\.\d+)?)/i);
+
+            // v1.1: 優先嘗試匹配 DOPS/Mini-CEX 格式 (1-10/1-5 量表) - 使用 DOM 解析更準確
+            let scaleScores = [];
+            let maxValInScale = 0;
+            let checkedInputs = doc.querySelectorAll('input[checked]');
+
+            checkedInputs.forEach(input => {
+                let val = parseInt(input.value);
+                let name = input.getAttribute('name') || '';
+
+                if (!isNaN(val) && val >= 1 && val <= 10) {
+                    if (name.includes('ScaleType') || (!name.includes('ChoiceType') && !name.includes('MultiLineString'))) {
+                        scaleScores.push(val);
+                        if (val > maxValInScale) maxValInScale = val;
+                    }
                 }
-                if (scaleScores.length > 0) {
-                    let avg = (scaleScores.reduce((a, b) => a + b, 0) / scaleScores.length) * 10;
-                    totalMatch = [null, avg.toFixed(0)];
+            });
+
+            if (scaleScores.length > 0) {
+                // 自動判斷量表範圍
+                // 若最大值 <= 5，通常為 1-5 分制 (如滿意度問卷)，則 * 20 換算為 100 分
+                // 若最大值 > 5，通常為 1-10 分制 (如 DOPS/Mini-CEX)，則 * 10 換算為 100 分
+                let multiplier = (maxValInScale <= 5) ? 20 : 10;
+                let avgCalculated = (scaleScores.reduce((a, b) => a + b, 0) / scaleScores.length) * multiplier;
+
+                // 邏輯優化：
+                // 1. 如果 regex 抓到的是很明確的關鍵字如 "滿意度總分數"、"評量總分數" 或 "成績"，則信任它
+                // 2. 如果 regex 抓到的是模糊的 "分數"，且我們有計算值，則優先使用計算值（避免抓到說明文字中的 "70分"）
+                let isSpecificMatch = totalMatch && (totalMatch[0].includes("總分數") || totalMatch[0].includes("成績") || totalMatch[0].includes("總分"));
+
+                if (!totalMatch || (!isSpecificMatch)) {
+                    totalMatch = [null, avgCalculated.toFixed(0)];
                 }
+            } else if (!totalMatch) {
+                totalMatch = null;
             }
             item.scoreRaw = totalMatch ? totalMatch[1] : findValue("專業知識");
         }
@@ -393,27 +454,39 @@ function analyzeHTML(raw) {
             }
         }
 
-        // --- 5. 回饋內容完整提取 ---
-        const extractPara = (key, label) => {
-            let r = new RegExp(key + "[:：\\s]*[\\s\\S]*?<textarea[^>]*>([\\s\\S]*?)<\\/textarea>", "i");
-            let m = raw.match(r);
-            if (m && m[1].trim() && !["無", "沒有"].includes(m[1].trim())) {
-                item.feedbacks.push({ label: label, content: m[1].trim(), type: label.includes('教師') || label.includes('評核') ? 'teacher' : 'student' });
+        // --- 5. 回饋內容完整提取 (改用 DOM 遍歷以確保抓取所有符合條件的欄位) ---
+        const feedbackKeywords = [
+            "臨床指導教師評估與回饋", "表現良好項目", "評估者回饋", "教師回饋意見", "教師回饋",
+            "導師回應", "教學負責人回應", "負責人回應", "建議加強項目", "改善項目", "待加強",
+            "對於如何增進實習效果的建議", "實習心得", "學員職前期許", "學生對實習醫院之建議",
+            "學生對學校之建議", "受評者回饋意見", "學員回饋", "學生其它建議"
+        ];
+
+        let allFormGroups = doc.querySelectorAll('.form-group');
+        allFormGroups.forEach(group => {
+            let labelElement = group.querySelector('label');
+            let textareaElement = group.querySelector('textarea');
+            if (labelElement && textareaElement) {
+                let labelText = labelElement.innerText.trim();
+                let content = textareaElement.value.trim() || textareaElement.innerText.trim();
+
+                if (content && !["無", "沒有", "無建議", "無。", "無建議。"].includes(content)) {
+                    // 偵測是否為感興趣的欄位
+                    let matchedKeyword = feedbackKeywords.find(kw => labelText.includes(kw));
+                    // 或者是特殊回饋單 (isInternGeneralFeedback) 的序號標題
+                    let isSpecialHeader = item.isInternGeneralFeedback && /^\(\d+\)/.test(labelText);
+
+                    if (matchedKeyword || isSpecialHeader) {
+                        let displayLabel = matchedKeyword || labelText.replace(/[:：]/g, '').trim();
+                        item.feedbacks.push({
+                            label: displayLabel,
+                            content: content,
+                            type: displayLabel.includes('教師') || displayLabel.includes('評核') || displayLabel.includes('導師') || displayLabel.includes('負責人') ? 'teacher' : 'student'
+                        });
+                    }
+                }
             }
-        };
-        if (item.isInternGeneralFeedback) {
-            extractPara("\\(1\\)訓練期間是否恰當", "心得：訓練期間");
-            extractPara("\\(2\\)學習項目是否有無需要增減", "建議：學習項目");
-            extractPara("\\(3\\)新進醫事放射師學習心得", "實習總心得");
-            extractPara("\\(4\\)對臨床指導教師指導帶領方式", "對帶領方式建議");
-            extractPara("\\(5\\)其它建議", "其它建議事項");
-            extractPara("\\(1\\)給訓練學員的建議", "教師給予對策");
-        } else {
-            // v1.0 擴充：支援核子醫學科、放射治療科回饋欄位
-            extractPara("(?:臨床指導教師評估與回饋|表現良好項目|評估者回饋|教師回饋意見|教師回饋[/／]意見)", "教師回饋");
-            extractPara("(?:建議加強項目|改善項目|待加強)", "待加強項目");
-            extractPara("(?:對於如何增進實習效果的建議|實習心得|學員職前期許|學生對實習醫院之建議|學生對學校之建議|受評者回饋意見|學員回饋[/／]意見|學員回饋)", "學員期許/心得");
-        }
+        });
 
         let dateMatches = raw.match(/(\d{4}[-\/]\d{1,2}[-\/]\d{1,2})/);
         item.date = dateMatches ? dateMatches[1].replace(/\//g, '-') : "1900-01-01";

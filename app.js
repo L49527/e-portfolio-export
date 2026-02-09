@@ -48,7 +48,7 @@ function renderCards() {
                                 <span class="font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded border border-rose-100">學員：${d.studentName}</span>
                             </div>
                             <h3 class="adaptive-title text-slate-900 mb-2 font-black">${d.title}</h3>
-                            <div class="mb-3 text-[11px] font-black text-indigo-700 italic">負責教師：${d.teacherName}</div>
+                            <div class="mb-3 text-[11px] font-black text-indigo-700 italic">${d.type === '輔導紀錄' ? '負責導師' : '負責教師'}：${d.teacherName || '未註明'}</div>
                             <div class="dept-badge ${getDeptStyle(d.department)}"><i class="fas fa-hospital-user mr-1"></i>${d.department}</div>
                         </div>
                         ${d.scoreRaw ? `
