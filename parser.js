@@ -27,7 +27,7 @@ function analyzeHTML(raw) {
         else if (ut.includes('問卷') || ut.includes('滿意度')) {
             item.type = '問卷調查';
         }
-        else if (ut.includes('導師輔導') || ut.includes('輔導紀錄')) {
+        else if (ut.includes('導師輔導') || ut.includes('輔導紀錄') || ut.includes('溝通紀錄') || ut.includes('溝通表')) {
             item.type = '輔導紀錄';
         }
         // 總評量表類
@@ -83,8 +83,8 @@ function analyzeHTML(raw) {
         else if (iTitle.includes('C-ARM') || iTitle.includes('CARM') || iTitle.includes('C ARM')) item.instrument = 'C-arm';
         else if (iTitle.includes('ANGIO') || iTitleOrig.includes('血管') || iTitle.includes('DSA')) item.instrument = 'Angio';
         else if (iTitle.includes('MAMMO') || iTitleOrig.includes('乳房') || iTitleOrig.includes('乳攝')) item.instrument = 'Mammo';
-        // BMD / DEXA / 骨密度
-        else if (iTitle.includes('DEXA') || iTitle.includes('DXA') || iTitle.includes('BMD') || iTitleOrig.includes('骨密') || iTitleOrig.includes('骨質密度')) item.instrument = 'DEXA';
+        // BMD / DEXA / 骨密度 (優先於一般攝影)
+        else if (iTitle.includes('DEXA') || iTitle.includes('DXA') || iTitle.includes('BMD') || iTitleOrig.includes('骨密') || iTitleOrig.includes('骨質密度')) item.instrument = 'BMD';
         else if (iTitle.includes('BONE') || iTitleOrig.includes('骨質')) item.instrument = 'Bone Scan';
         else if (iTitle.includes('FLUORO') || iTitleOrig.includes('透視') || /\bGI\b/.test(iTitle) || iTitle.includes('UGI') || iTitle.includes('LGI') || iTitleOrig.includes('鋇劑')) item.instrument = 'Fluoro';
         else if (iTitle.includes('ECHO') || iTitle.includes('ULTRASOUND') || iTitleOrig.includes('超音波') || iTitle.includes('SONO')) item.instrument = 'Echo';
@@ -104,20 +104,33 @@ function analyzeHTML(raw) {
         // 牙科
         else if (iTitle.includes('DENTAL') || iTitleOrig.includes('牙') || iTitle.includes('PANO') || iTitle.includes('CEPH')) item.instrument = 'Dental';
         // 一般攝影 / X光
-        else if (iTitle.includes('X-RAY') || iTitle.includes('XRAY') || iTitleOrig.includes('X光')) item.instrument = 'X-ray';
-        else if (iTitle.includes('GENERAL') || /\bCR\b/.test(iTitle) || /\bDR\b/.test(iTitle) || iTitleOrig.includes('一般') || iTitle.includes('PORTABLE') || iTitleOrig.includes('移動式')) item.instrument = 'General';
+        else if (iTitle.includes('X-RAY') || iTitle.includes('XRAY') || iTitleOrig.includes('X光') || iTitleOrig.includes('一般攝影') || iTitleOrig.includes('一般診斷')) {
+            if (iTitleOrig.includes('第一季')) item.instrument = '一般診斷攝影-第一季';
+            else if (iTitleOrig.includes('第二季')) item.instrument = '一般診斷攝影-第二季';
+            else item.instrument = 'X-ray';
+        }
+        else if (iTitle.includes('GENERAL') || /\bCR\b/.test(iTitle) || /\bDR\b/.test(iTitle) || iTitle.includes('PORTABLE') || iTitleOrig.includes('移動式')) item.instrument = 'General';
+        else if (iTitleOrig.includes('放射醫學影像及儀器品保')) item.instrument = '影像學';
         else { item.instrument = ''; }
 
         // --- 1.6 DOPS/Mini-CEX/CbD/Milestone/EPA 儀器別補充偵測 (從全文搜尋) ---
         const requiresInstrument = ['DOPS', 'Mini-CEX', 'CbD', 'Milestone', 'EPA'].includes(item.type);
-        if (requiresInstrument && !item.instrument) {
+        // 允許從全文搜尋中優化儀器別 (特別是當標題只拿到大類 X-ray 或 Special 但全文有 季別 或 骨密 時)
+        const isGeneric = !item.instrument || ['X-RAY', 'GENERAL', '影像學', 'SPECIAL'].includes(item.instrument.toUpperCase());
+        if (requiresInstrument && isGeneric) {
             const fullText = cleanText.toUpperCase();
+            // 骨密 (優先判定，避免被 X-ray 搶走)
+            if (fullText.includes('骨密') || /\bDEXA\b/.test(fullText) || fullText.includes('骨質密度')) {
+                item.instrument = 'BMD';
+            }
             // X-ray (一般診斷攝影)
-            if (fullText.includes('一般診斷攝影') || fullText.includes('一般攝影') ||
+            else if (fullText.includes('一般診斷攝影') || fullText.includes('一般攝影') ||
                 fullText.includes('X光') || fullText.includes('X 光') ||
                 /\bX-RAY\b/.test(fullText) || /\bXRAY\b/.test(fullText) ||
                 /\bBUCKY\b/.test(fullText)) {
-                item.instrument = 'X-ray';
+                if (fullText.includes('第一季')) item.instrument = '一般診斷攝影-第一季';
+                else if (fullText.includes('第二季')) item.instrument = '一般診斷攝影-第二季';
+                else item.instrument = 'X-ray';
             }
             else if (/\bPET[\s\/\-]CT\b/.test(fullText)) item.instrument = 'PET/CT';
             else if (/\bSPECT[\s\/\-]CT\b/.test(fullText)) item.instrument = 'SPECT/CT';
@@ -126,9 +139,9 @@ function analyzeHTML(raw) {
             else if (/\bC-ARM\b/.test(fullText)) item.instrument = 'C-arm';
             else if (fullText.includes('血管攝影') || /\bANGIO\b/.test(fullText) || /\bDSA\b/.test(fullText)) item.instrument = 'Angio';
             else if (fullText.includes('乳房攝影') || fullText.includes('乳攝') || /\bMAMMO\b/.test(fullText)) item.instrument = 'Mammo';
-            else if (fullText.includes('骨密') || /\bDEXA\b/.test(fullText)) item.instrument = 'DEXA';
             else if (fullText.includes('透視') || fullText.includes('鋇劑') || /\bFLUORO\b/.test(fullText)) item.instrument = 'Fluoro';
             else if (fullText.includes('超音波') || /\bECHO\b/.test(fullText) || /\bSONO\b/.test(fullText)) item.instrument = 'Echo';
+            else if (fullText.includes('放射醫學影像及儀器品保')) item.instrument = '影像學';
             else if (fullText.includes('核醫')) item.instrument = 'Nuc Med';
             else if (fullText.includes('直線加速器') || /\bLINAC\b/.test(fullText)) item.instrument = 'LINAC';
             else if (fullText.includes('放射治療')) item.instrument = 'RT';
@@ -150,8 +163,10 @@ function analyzeHTML(raw) {
             else if (d.includes('核子醫學')) item.department = '核子醫學科';
             else if (d.includes('放射治療') || d.includes('放射腫瘤')) item.department = '放射治療科';
 
-            // v1.0: 從階段/子階段提取儀器別 (優先於標題判定)
-            if (!item.instrument || item.instrument === '') {
+            // v1.0: 從階段/子階段提取儀器別 (優先於標題判定，允许覆盖通用类型)
+            // 定義通用類型，如果目前判斷的是這些，允許被階段欄位覆寫 (例如全文有X光室導致被判成 X-ray，但階段寫 MRI)
+            const isGenericTypes = ['X-RAY', 'GENERAL', '影像學', 'SPECIAL', 'X-RAY'];
+            if (!item.instrument || item.instrument === '' || isGenericTypes.includes(item.instrument.toUpperCase())) {
                 // 放射治療相關儀器
                 if (d.includes('模擬攝影') || d.includes('模擬定位')) item.instrument = '模擬攝影';
                 else if (d.includes('直線加速器') || d.includes('LINAC')) item.instrument = 'LINAC';
@@ -170,14 +185,28 @@ function analyzeHTML(raw) {
                 // 心導管
                 else if (d.includes('心導管')) item.instrument = '心導管';
                 // 影像醫學相關
+                // 影像醫學相關
                 else if (d.includes('電腦斷層') || /\bCT\b/.test(d.toUpperCase())) item.instrument = 'CT';
                 else if (d.includes('磁振') || /\bMRI\b/.test(d.toUpperCase())) item.instrument = 'MRI';
                 else if (d.includes('血管攝影') || d.includes('Angio')) item.instrument = 'Angio';
                 else if (d.includes('超音波')) item.instrument = 'Echo';
                 else if (d.includes('乳房') || d.includes('乳攝')) item.instrument = 'Mammo';
                 else if (d.includes('透視') || d.includes('Fluoro')) item.instrument = 'Fluoro';
-                else if (d.includes('一般診斷') || d.includes('一般攝影')) item.instrument = 'X-ray';
-                else if (d.includes('特殊攝影')) item.instrument = '特殊攝影';
+                else if (d.includes('一般診斷攝影-第一季')) item.instrument = '一般診斷攝影-第一季';
+                else if (d.includes('一般診斷攝影-第二季')) item.instrument = '一般診斷攝影-第二季';
+                else if (d.includes('一般診斷攝影-骨質密度')) item.instrument = 'BMD';
+                else if (d.includes('一般診斷攝影')) {
+                    if (d.includes('第一季')) item.instrument = '一般診斷攝影-第一季';
+                    else if (d.includes('第二季')) item.instrument = '一般診斷攝影-第二季';
+                    else item.instrument = 'X-ray';
+                }
+                else if (d.includes('一般診斷') || d.includes('一般攝影')) {
+                    if (d.includes('第一季')) item.instrument = '一般診斷攝影-第一季';
+                    else if (d.includes('第二季')) item.instrument = '一般診斷攝影-第二季';
+                    else item.instrument = 'X-ray';
+                }
+                else if (d.includes('特殊攝影')) item.instrument = 'Special';
+                else if (d.includes('放射醫學影像及儀器品保')) item.instrument = '影像學';
             }
         }
 
@@ -488,8 +517,27 @@ function analyzeHTML(raw) {
             }
         });
 
-        let dateMatches = raw.match(/(\d{4}[-\/]\d{1,2}[-\/]\d{1,2})/);
-        item.date = dateMatches ? dateMatches[1].replace(/\//g, '-') : "1900-01-01";
+        // --- 精準日期提取 (優先搜尋「評量日期」欄位) ---
+        let finalDate = "";
+        let labels = doc.querySelectorAll('label');
+        for (let lb of labels) {
+            if (lb.innerText.includes('評量日期')) {
+                let group = lb.closest('.form-group');
+                if (group) {
+                    let inp = group.querySelector('input[type="text"]');
+                    if (inp && inp.value && /\d{4}[-\/]\d{1,2}[-\/]\d{1,2}/.test(inp.value)) {
+                        finalDate = inp.value.trim().replace(/\//g, '-');
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!finalDate) {
+            let dateMatches = raw.match(/(\d{4}[-\/]\d{1,2}[-\/]\d{1,2})/);
+            finalDate = dateMatches ? dateMatches[1].replace(/\//g, '-') : "1900-01-01";
+        }
+        item.date = finalDate;
 
         return item;
     } catch (e) { return null; }
