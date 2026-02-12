@@ -40,27 +40,37 @@ function analyzeHTML(raw) {
         else if (ut.includes('DOPS') || ut.includes('PROCEDURAL') || ut.includes('PROCEDURAL SKILLS') || ut.includes('操作技能直接觀察')) item.type = 'DOPS';
         else if (ut.includes('MINI-CEX') || ut.includes('MINI CEX') || ut.includes('CEX') || ut.includes('臨床演練')) item.type = 'Mini-CEX';
         else if (ut.includes('CBD') || ut.includes('案例討論')) item.type = 'CbD';
-        else if (ut.includes('1.1') || ut.includes('基礎課程')) item.type = '基礎課程'; // 保留以相容舊邏輯
+        else if (ut.includes('基礎課程')) item.type = '基礎課程';
+        else if (ut.includes('單站評量') || ut.includes('實習成效評量')) item.type = '單站評量';
         else { item.type = '單站評量'; } // 預設
 
         let instrument = '';
-        // v1.0: 嘗試從 radio button 選項提取 (操作項目)
+        // v1.1: 嘗試從 radio button 選項提取 (操作項目)
         let radioMatch = raw.match(/操作項目[\s\S]*?checked[\s\S]*?value="([^"]+)"/i);
         if (radioMatch) { instrument = radioMatch[1].trim(); }
-        // v1.0: 嘗試從評量類別 input 提取 (核子醫學科 DOPS 專用)
+        // v1.1: 嘗試從評量類別 input 提取 (核子醫學科 DOPS 專用)
         if (!instrument) {
             let categoryMatch = raw.match(/評量類別[\s\S]*?value="([^"]+)"/i);
             if (categoryMatch) { instrument = categoryMatch[1].trim(); }
         }
-        // v1.0: 嘗試從操作項目文字提取
+        // v1.1: 嘗試從操作項目文字提取
         if (!instrument) {
             let opMatch = cleanText.match(/操作項目[:：\s]*([\u4e00-\u9fa5a-zA-Z0-9\-\s().]+)/);
             if (opMatch) { instrument = opMatch[1].trim(); }
         }
 
-        // v1.0: 關鍵字標準化 (以標題或操作項目判定)
+        // v1.1: 關鍵字標準化 (以標題或操作項目判定)
         const iTitle = (item.title + ' ' + instrument).toUpperCase();
         const iTitleOrig = item.title + ' ' + instrument; // 保留原始大小寫用於中文判定
+
+        // v1.1: 嘗試從階段/子階段提取 (用於優先判定)
+        let iPhase = "";
+        let iPhaseOrig = "";
+        let phaseMatch = raw.match(/階段\/子階段[:：\s]*[\s\S]*?<dd[^>]*>([\s\S]*?)<\/dd>/i);
+        if (phaseMatch) {
+            iPhaseOrig = phaseMatch[1].replace(/<[^>]+>/g, '').trim();
+            iPhase = iPhaseOrig.toUpperCase();
+        }
 
         // 如果已經從 radio button 抓到 instrument，直接使用 (最優先)
         if (instrument && instrument !== '') {
@@ -88,11 +98,39 @@ function analyzeHTML(raw) {
         else if (iTitle.includes('BONE') || iTitleOrig.includes('骨質')) item.instrument = 'Bone Scan';
         else if (iTitle.includes('FLUORO') || iTitleOrig.includes('透視') || /\bGI\b/.test(iTitle) || iTitle.includes('UGI') || iTitle.includes('LGI') || iTitleOrig.includes('鋇劑')) item.instrument = 'Fluoro';
         else if (iTitle.includes('ECHO') || iTitle.includes('ULTRASOUND') || iTitleOrig.includes('超音波') || iTitle.includes('SONO')) item.instrument = 'Echo';
-        // Gamma Camera
-        else if (iTitle.includes('GAMMA') || iTitleOrig.includes('伽瑪') || iTitleOrig.includes('閃爍')) item.instrument = 'Gamma Camera';
+        // --- 1.2 優先從「階段/子階段」或「標題」中偵測特殊科別 (RT/NM) ---
+        // 放射治療 (RT)
+        else if (iPhaseOrig.includes('放射治療計畫')) item.instrument = '放射治療計畫';
+        else if (iPhaseOrig.includes('放射治療品保')) item.instrument = '放射治療品保';
+        else if (iPhaseOrig.includes('模具製作')) item.instrument = '模具製作';
+        else if (iPhaseOrig.includes('放射治療') || iPhaseOrig.includes('放射線治療') || iPhaseOrig.includes('放射腫瘤') || iPhaseOrig.includes('放腫科')) item.instrument = '放射治療';
+
+        else if (iTitleOrig.includes('放射治療計畫')) item.instrument = '放射治療計畫';
+        else if (iTitleOrig.includes('放射治療品保')) item.instrument = '放射治療品保';
+        else if (iTitleOrig.includes('模具製作')) item.instrument = '模具製作';
+        else if (iTitleOrig.includes('放射治療') || iTitleOrig.includes('放射線治療') || iTitleOrig.includes('放射腫瘤')) item.instrument = '放射治療';
+
         // 核醫 (NM)
-        else if (iTitle.includes('NUC') || iTitleOrig.includes('核醫') || /\bNM\b/.test(iTitle)) item.instrument = 'Nuc Med';
-        // 放射治療相關
+        else if (iTitleOrig.includes('核子醫學診斷造影')) item.instrument = '核醫造影';
+        else if (iTitleOrig.includes('放射免疫分析')) item.instrument = '放射免疫分析';
+        else if (iTitleOrig.includes('體內分析')) item.instrument = '體內分析';
+        else if (iTitle.includes('NUC') || iTitleOrig.includes('核子醫學') || iTitleOrig.includes('核醫') || /\bNM\b/.test(iTitle)) {
+            if (iTitleOrig.includes('藥物')) item.instrument = '核醫藥物';
+            else if (iTitleOrig.includes('治療')) item.instrument = '核醫治療';
+            else if (iTitleOrig.includes('造影')) item.instrument = '核醫造影';
+            else if (iTitleOrig.includes('免疫')) item.instrument = '放射免疫';
+            else if (iTitleOrig.includes('診斷')) item.instrument = '核子醫學';
+            else item.instrument = '核子醫學';
+        }
+        else if (iPhase.includes('NUC') || iPhaseOrig.includes('核子醫學') || iPhaseOrig.includes('核醫')) {
+            if (iPhaseOrig.includes('藥物')) item.instrument = '核醫藥物';
+            else if (iPhaseOrig.includes('治療')) item.instrument = '核醫治療';
+            else if (iPhaseOrig.includes('造影')) item.instrument = '核醫造影';
+            else if (iPhaseOrig.includes('免疫')) item.instrument = '放射免疫';
+            else if (iPhaseOrig.includes('分析')) item.instrument = '體內分析';
+            else item.instrument = '核子醫學';
+        }
+        // 放射線治療相關 (輔助)
         else if (iTitle.includes('LINAC') || iTitleOrig.includes('直線加速器')) item.instrument = 'LINAC';
         else if (iTitle.includes('TOMO') || iTitleOrig.includes('螺旋斷層')) item.instrument = 'TomoTherapy';
         else if (iTitle.includes('BRACHY') || iTitleOrig.includes('近接')) item.instrument = 'Brachytherapy';
@@ -110,17 +148,37 @@ function analyzeHTML(raw) {
             else item.instrument = 'X-ray';
         }
         else if (iTitle.includes('GENERAL') || /\bCR\b/.test(iTitle) || /\bDR\b/.test(iTitle) || iTitle.includes('PORTABLE') || iTitleOrig.includes('移動式')) item.instrument = 'General';
-        else if (iTitleOrig.includes('放射醫學影像及儀器品保')) item.instrument = '影像學';
+        else if (iTitleOrig.includes('放射醫學影像品保') || iTitleOrig.includes('影像學')) item.instrument = '影像學';
         else { item.instrument = ''; }
 
-        // --- 1.6 DOPS/Mini-CEX/CbD/Milestone/EPA 儀器別補充偵測 (從全文搜尋) ---
-        const requiresInstrument = ['DOPS', 'Mini-CEX', 'CbD', 'Milestone', 'EPA'].includes(item.type);
+        // 特別排除：整體實習成效不用套儀器別
+        if (iTitleOrig.includes('整體實習成效')) {
+            item.instrument = '';
+        }
+
+        // --- 1.6 DOPS/Mini-CEX/CbD/Milestone/EPA/輔導紀錄 儀器別補充偵測 ---
+        const isOverall = iTitleOrig.includes('整體實習成效');
+        const requiresInstrument = ['DOPS', 'Mini-CEX', 'CbD', 'Milestone', 'EPA', '單站評量', '基礎課程', '輔導紀錄'].includes(item.type) && !isOverall;
         // 允許從全文搜尋中優化儀器別 (特別是當標題只拿到大類 X-ray 或 Special 但全文有 季別 或 骨密 時)
         const isGeneric = !item.instrument || ['X-RAY', 'GENERAL', '影像學', 'SPECIAL'].includes(item.instrument.toUpperCase());
         if (requiresInstrument && isGeneric) {
             const fullText = cleanText.toUpperCase();
+
+            // --- 優先判定 RT / NM (避免被 CT/MRI 截斷) ---
+            if (fullText.includes('放射治療計畫')) item.instrument = '放射治療計畫';
+            else if (fullText.includes('放射治療') || fullText.includes('放射線治療')) item.instrument = '放射治療';
+            else if (fullText.includes('放射治療品保')) item.instrument = '放射治療品保';
+            else if (fullText.includes('直線加速器') || /\bLINAC\b/.test(fullText)) item.instrument = 'LINAC';
+
+            else if (fullText.includes('核子醫學藥物') || fullText.includes('核醫藥物')) item.instrument = '核醫藥物';
+            else if (fullText.includes('核子醫學治療') || fullText.includes('核醫治療')) item.instrument = '核醫治療';
+            else if (fullText.includes('放射免疫分析')) item.instrument = '放射免疫分析';
+            else if (fullText.includes('放射免疫')) item.instrument = '放射免疫';
+            else if (fullText.includes('體內分析')) item.instrument = '體內分析';
+
+            // --- 其他影像醫學項目 ---
             // 骨密 (優先判定，避免被 X-ray 搶走)
-            if (fullText.includes('骨密') || /\bDEXA\b/.test(fullText) || fullText.includes('骨質密度')) {
+            else if (fullText.includes('骨密') || /\bDEXA\b/.test(fullText) || fullText.includes('骨質密度')) {
                 item.instrument = 'BMD';
             }
             // X-ray (一般診斷攝影)
@@ -141,10 +199,8 @@ function analyzeHTML(raw) {
             else if (fullText.includes('乳房攝影') || fullText.includes('乳攝') || /\bMAMMO\b/.test(fullText)) item.instrument = 'Mammo';
             else if (fullText.includes('透視') || fullText.includes('鋇劑') || /\bFLUORO\b/.test(fullText)) item.instrument = 'Fluoro';
             else if (fullText.includes('超音波') || /\bECHO\b/.test(fullText) || /\bSONO\b/.test(fullText)) item.instrument = 'Echo';
-            else if (fullText.includes('放射醫學影像及儀器品保')) item.instrument = '影像學';
-            else if (fullText.includes('核醫')) item.instrument = 'Nuc Med';
-            else if (fullText.includes('直線加速器') || /\bLINAC\b/.test(fullText)) item.instrument = 'LINAC';
-            else if (fullText.includes('放射治療')) item.instrument = 'RT';
+            else if (fullText.includes('放射醫學影像品保') || fullText.includes('影像學')) item.instrument = '影像學';
+            else if (fullText.includes('興趣加選')) item.instrument = '興趣加選';
             else if (/\bCR\b/.test(fullText) || /\bDR\b/.test(fullText)) item.instrument = 'General';
         }
 
@@ -163,25 +219,31 @@ function analyzeHTML(raw) {
             else if (d.includes('核子醫學')) item.department = '核子醫學科';
             else if (d.includes('放射治療') || d.includes('放射腫瘤')) item.department = '放射治療科';
 
-            // v1.0: 從階段/子階段提取儀器別 (優先於標題判定，允许覆盖通用类型)
+            // v1.1: 從階段/子階段提取儀器別 (優先於標題判定，允许覆盖通用类型)
             // 定義通用類型，如果目前判斷的是這些，允許被階段欄位覆寫 (例如全文有X光室導致被判成 X-ray，但階段寫 MRI)
             const isGenericTypes = ['X-RAY', 'GENERAL', '影像學', 'SPECIAL', 'X-RAY'];
             if (!item.instrument || item.instrument === '' || isGenericTypes.includes(item.instrument.toUpperCase())) {
-                // 放射治療相關儀器
+                // 放射治療相關
                 if (d.includes('模擬攝影') || d.includes('模擬定位')) item.instrument = '模擬攝影';
                 else if (d.includes('直線加速器') || d.includes('LINAC')) item.instrument = 'LINAC';
                 else if (d.includes('模具製作')) item.instrument = '模具製作';
+                else if (d.includes('放射治療計畫')) item.instrument = '放射治療計畫';
                 else if (d.includes('治療計畫') || d.includes('TPS')) item.instrument = '治療計畫';
+                else if (d.includes('放射治療技術')) item.instrument = '放射治療技術';
+                else if (d.includes('放射治療品保')) item.instrument = '放射治療品保';
                 else if (d.includes('劑量計算')) item.instrument = '劑量計算';
                 else if (d.includes('近接治療') || d.includes('Brachy')) item.instrument = 'Brachytherapy';
-                // 核醫相關儀器
+                // 核醫相關
                 else if (d.includes('SPECT')) item.instrument = 'SPECT';
                 else if (d.includes('PET')) item.instrument = 'PET';
                 else if (d.includes('Gamma') || d.includes('伽瑪')) item.instrument = 'Gamma Camera';
-                else if (d.includes('核醫藥物')) item.instrument = '核醫藥物';
-                else if (d.includes('核醫治療')) item.instrument = '核醫治療';
+                else if (d.includes('核子醫學診斷造影')) item.instrument = '核醫造影';
+                else if (d.includes('放射免疫分析')) item.instrument = '放射免疫分析';
                 else if (d.includes('放射免疫')) item.instrument = '放射免疫';
                 else if (d.includes('體內分析')) item.instrument = '體內分析';
+                else if (d.includes('核子醫學藥物') || d.includes('核醫藥物')) item.instrument = '核醫藥物';
+                else if (d.includes('核子醫學治療') || d.includes('核醫治療')) item.instrument = '核醫治療';
+                else if (d.includes('核子醫學') || d.includes('核醫')) item.instrument = '核子醫學';
                 // 心導管
                 else if (d.includes('心導管')) item.instrument = '心導管';
                 // 影像醫學相關
@@ -205,8 +267,11 @@ function analyzeHTML(raw) {
                     else if (d.includes('第二季')) item.instrument = '一般診斷攝影-第二季';
                     else item.instrument = 'X-ray';
                 }
+                else if (d.includes('放射治療技術')) item.instrument = '放射治療技術';
+                else if (d.includes('放射治療品保')) item.instrument = '放射治療品保';
                 else if (d.includes('特殊攝影')) item.instrument = 'Special';
                 else if (d.includes('放射醫學影像及儀器品保')) item.instrument = '影像學';
+                else if (d.includes('興趣加選')) item.instrument = '興趣加選';
             }
         }
 
@@ -538,6 +603,12 @@ function analyzeHTML(raw) {
             finalDate = dateMatches ? dateMatches[1].replace(/\//g, '-') : "1900-01-01";
         }
         item.date = finalDate;
+
+        // 針對輔導紀錄的特殊處理 (優先根據科別判定)
+        if (item.type === '輔導紀錄' && !item.instrument) {
+            if (item.department.includes('放射治療')) item.instrument = '放射治療';
+            else if (item.department.includes('核子醫學')) item.instrument = '核子醫學';
+        }
 
         return item;
     } catch (e) { return null; }

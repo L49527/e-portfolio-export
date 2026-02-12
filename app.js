@@ -147,7 +147,7 @@ function exportToCSV() {
         ].map(v => `"${(v || '').toString().replace(/"/g, '""').replace(/\n/g, ' ').replace(/\r/g, '')}"`).join(','));
     });
     const b = new Blob(["\ufeff" + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const l = document.createElement("a"); l.href = URL.createObjectURL(b); l.download = `ePortfolio_Export_v1.0.csv`; l.click();
+    const l = document.createElement("a"); l.href = URL.createObjectURL(b); l.download = `ePortfolio_Export_v1.1.csv`; l.click();
 }
 // 處理拖曳事件（僅支援檔案）
 function handleDrop(e) {

@@ -1,9 +1,9 @@
-# e portfolio export助手 v1.0 (Refactored)
+# e portfolio export助手 v1.1
 
 > 醫事放射 UGY 實習評量表 HTML 批次分析與匯出工具
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Version](https://img.shields.io/badge/version-1.0-green.svg)
+![Version](https://img.shields.io/badge/version-1.1-green.svg)
 
 ## 📋 功能特色
 
@@ -11,8 +11,13 @@
 - **批次匯入** - 拖放多個 HTML 評量表檔案，自動解析
 - **智慧分類** - 自動識別評量類型（總評量表、學員回饋單、單站評量、EPA、基礎課程）
 - **科別判定** - 根據表單編號自動歸類至影像醫學科、核子醫學科、放射治療科、心導管室
+- **儀器別自動偵測** - 智慧識別 X-ray, CT, MRI, 核醫, 放射治療等各科儀器別 (New!)
 - **學員/教師識別** - 通用模式自動提取學員與負責教師姓名
-- **現代化架構** - 採用模組化設計 (HTML/CSS/JS 分離)，易於維護與擴充 (New!)
+- **現代化架構** - 採用模組化設計 (HTML/CSS/JS 分離)，易於維護與擴充
+
+### v1.1 更新 (2026-02-12)
+- ✅ **儀器別偵測強化** - 新修復核子醫學科（核醫藥物、治療、放射免疫、體內分析）與放射治療科（技術、品保）之儀器別顯示問題
+- ✅ **匯出檔名更正** - CSV 匯出預設檔名更新為 `v1.1`
 
 ### v1.0 重構更新 (2026-02-09)
 - ✅ **模組化架構** - 將原本單一 HTML 拆分為 `index.html`, `style.css`, `parser.js`, `app.js`
