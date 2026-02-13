@@ -4,6 +4,22 @@ function analyzeHTML(raw) {
         let doc = parser.parseFromString(raw, "text/html");
         let cleanText = doc.body.innerText.replace(/\s+/g, ' ');
 
+        // 相容於評量展示助手 v1.0 的里程碑指標清單
+        const TARGET_MILESTONES = [
+            "一、醫學影像及放射科學知識 1",
+            "一、醫學影像及放射科學知識 2",
+            "二、醫病關係及團隊溝通能力 1",
+            "二、醫病關係及團隊溝通能力 2",
+            "三、病人照護 1",
+            "三、病人照護 2",
+            "三、病人照護 3",
+            "三、病人照護 4",
+            "三、病人照護 5",
+            "四、提升本職技能 1",
+            "五、專業素養 1",
+            "五、專業素養 2"
+        ];
+
         let item = {
             id: Math.random().toString(36).substr(2, 9),
             type: '評量表', department: '影像醫學科', title: doc.title || "評量表", date: '1900-01-01',
@@ -12,6 +28,8 @@ function analyzeHTML(raw) {
             stationScores: [], feedbacks: [], showSubscores: false,
             isInternGeneralFeedback: false,
             opaScores: { opa1: '', opa2: '', opa3: '' },  // EPA OPA 分數
+            opaFeedbacks: { opa1: '', opa2: '', opa3: '' }, // EPA OPA 質性回饋
+            milestoneLevels: {}, // 里程碑各項等級 (相容於展示助手)
             instrument: '' // 新增儀器別
         };
 
@@ -89,46 +107,58 @@ function analyzeHTML(raw) {
         // CT (需使用 word boundary 避免匹配 'Direct' 等單字)
         else if (/\bCT\b/.test(iTitle) || iTitleOrig.includes('電腦斷層')) item.instrument = 'CT';
         else if (/\bMRI\b/.test(iTitle) || iTitleOrig.includes('磁振') || /\bMR\b/.test(iTitle)) item.instrument = 'MRI';
-        // C-arm / 移動式X光機
-        else if (iTitle.includes('C-ARM') || iTitle.includes('CARM') || iTitle.includes('C ARM')) item.instrument = 'C-arm';
-        else if (iTitle.includes('ANGIO') || iTitleOrig.includes('血管') || iTitle.includes('DSA')) item.instrument = 'Angio';
-        else if (iTitle.includes('MAMMO') || iTitleOrig.includes('乳房') || iTitleOrig.includes('乳攝')) item.instrument = 'Mammo';
-        // BMD / DEXA / 骨密度 (優先於一般攝影)
-        else if (iTitle.includes('DEXA') || iTitle.includes('DXA') || iTitle.includes('BMD') || iTitleOrig.includes('骨密') || iTitleOrig.includes('骨質密度')) item.instrument = 'BMD';
-        else if (iTitle.includes('BONE') || iTitleOrig.includes('骨質')) item.instrument = 'Bone Scan';
-        else if (iTitle.includes('FLUORO') || iTitleOrig.includes('透視') || /\bGI\b/.test(iTitle) || iTitle.includes('UGI') || iTitle.includes('LGI') || iTitleOrig.includes('鋇劑')) item.instrument = 'Fluoro';
-        else if (iTitle.includes('ECHO') || iTitle.includes('ULTRASOUND') || iTitleOrig.includes('超音波') || iTitle.includes('SONO')) item.instrument = 'Echo';
-        // --- 1.2 優先從「階段/子階段」或「標題」中偵測特殊科別 (RT/NM) ---
-        // 放射治療 (RT)
-        else if (iPhaseOrig.includes('放射治療計畫')) item.instrument = '放射治療計畫';
-        else if (iPhaseOrig.includes('放射治療品保')) item.instrument = '放射治療品保';
-        else if (iPhaseOrig.includes('模具製作')) item.instrument = '模具製作';
-        else if (iPhaseOrig.includes('放射治療') || iPhaseOrig.includes('放射線治療') || iPhaseOrig.includes('放射腫瘤') || iPhaseOrig.includes('放腫科')) item.instrument = '放射治療';
+        // v1.1.1: 重構儀器別判定順序，嚴格優先使用「階段/子階段」欄位
+        let finalInstrument = '';
 
-        else if (iTitleOrig.includes('放射治療計畫')) item.instrument = '放射治療計畫';
-        else if (iTitleOrig.includes('放射治療品保')) item.instrument = '放射治療品保';
-        else if (iTitleOrig.includes('模具製作')) item.instrument = '模具製作';
-        else if (iTitleOrig.includes('放射治療') || iTitleOrig.includes('放射線治療') || iTitleOrig.includes('放射腫瘤')) item.instrument = '放射治療';
-
-        // 核醫 (NM)
-        else if (iTitleOrig.includes('核子醫學診斷造影')) item.instrument = '核醫造影';
-        else if (iTitleOrig.includes('放射免疫分析')) item.instrument = '放射免疫分析';
-        else if (iTitleOrig.includes('體內分析')) item.instrument = '體內分析';
-        else if (iTitle.includes('NUC') || iTitleOrig.includes('核子醫學') || iTitleOrig.includes('核醫') || /\bNM\b/.test(iTitle)) {
-            if (iTitleOrig.includes('藥物')) item.instrument = '核醫藥物';
-            else if (iTitleOrig.includes('治療')) item.instrument = '核醫治療';
-            else if (iTitleOrig.includes('造影')) item.instrument = '核醫造影';
-            else if (iTitleOrig.includes('免疫')) item.instrument = '放射免疫';
-            else if (iTitleOrig.includes('診斷')) item.instrument = '核子醫學';
-            else item.instrument = '核子醫學';
+        // 1. 優先從「階段/子階段」精確判定
+        if (iPhaseOrig) {
+            if (iPhaseOrig.includes('磁振') || iPhaseOrig.includes('MRI') || iPhaseOrig.includes('MR')) finalInstrument = 'MRI';
+            else if (iPhaseOrig.includes('血管') || iPhaseOrig.includes('ANGIO')) finalInstrument = 'Angio';
+            else if (iPhaseOrig.includes('電腦斷層') || iPhaseOrig.includes('CT')) finalInstrument = 'CT';
+            else if (iPhaseOrig.includes('超音波') || iPhaseOrig.includes('ECHO')) finalInstrument = 'Echo';
+            else if (iPhaseOrig.includes('放射治療計畫')) finalInstrument = '放射治療計畫';
+            else if (iPhaseOrig.includes('放射治療品保')) finalInstrument = '放射治療品保';
+            else if (iPhaseOrig.includes('模具製作')) finalInstrument = '模具製作';
+            else if (iPhaseOrig.includes('放射治療') || iPhaseOrig.includes('放射線治療') || iPhaseOrig.includes('放射腫瘤')) finalInstrument = '放射治療';
+            else if (iPhaseOrig.includes('核子醫學') || iPhaseOrig.includes('核醫')) finalInstrument = '核子醫學';
+            else if (iPhaseOrig.includes('乳房') || iPhaseOrig.includes('MAMMO')) finalInstrument = 'Mammo';
         }
-        else if (iPhase.includes('NUC') || iPhaseOrig.includes('核子醫學') || iPhaseOrig.includes('核醫')) {
-            if (iPhaseOrig.includes('藥物')) item.instrument = '核醫藥物';
-            else if (iPhaseOrig.includes('治療')) item.instrument = '核醫治療';
-            else if (iPhaseOrig.includes('造影')) item.instrument = '核醫造影';
-            else if (iPhaseOrig.includes('免疫')) item.instrument = '放射免疫';
-            else if (iPhaseOrig.includes('分析')) item.instrument = '體內分析';
-            else item.instrument = '核子醫學';
+
+        // 2. 如果階段判定為空，則使用全文字串判定 (標題 + 操作項目)
+        if (!finalInstrument) {
+            if (iTitleOrig.includes('心導管') || iTitle.includes('CATH LAB')) finalInstrument = '心導管';
+            else if (iTitleOrig.includes('模擬攝影') || iTitleOrig.includes('模擬定位')) finalInstrument = '模擬攝影';
+            else if (iTitle.includes('PET/CT')) finalInstrument = 'PET/CT';
+            else if (iTitle.includes('SPECT/CT')) finalInstrument = 'SPECT/CT';
+            else if (iTitle.includes('MRI') || iTitleOrig.includes('磁振') || iTitle.includes(' MR ')) finalInstrument = 'MRI';
+            else if (iTitle.includes(' CT ') || iTitle.includes('CT-') || iTitleOrig.includes('電腦斷層')) finalInstrument = 'CT';
+            else if (iTitle.includes('ANGIO') || iTitleOrig.includes('血管') || iTitle.includes('DSA')) finalInstrument = 'Angio';
+            else if (iTitleOrig.includes('放射治療') || iTitleOrig.includes('放射線治療') || iTitleOrig.includes('放射腫瘤')) finalInstrument = '放射治療';
+            else if (iTitle.includes('NUC') || iTitleOrig.includes('核子醫學') || iTitleOrig.includes('核醫')) finalInstrument = '核子醫學';
+            else if (iTitleOrig.includes('乳房') || iTitleOrig.includes('乳攝')) finalInstrument = 'Mammo';
+            else if (iTitle.includes('DEXA') || iTitleOrig.includes('骨密')) finalInstrument = 'BMD';
+            else if (iTitleOrig.includes('透視') || iTitle.includes('GI') || iTitle.includes('UGI')) finalInstrument = 'Fluoro';
+            else if (iTitleOrig.includes('超音波') || iTitle.includes('ECHO')) finalInstrument = 'Echo';
+            else if (iTitle.includes('DENTAL') || iTitleOrig.includes('牙')) finalInstrument = 'Dental';
+        }
+
+        // 3. 處理核醫/放教等細分 (如果已經判定為大類)
+        if (finalInstrument === '核子醫學') {
+            if (iTitleOrig.includes('藥物') || iPhaseOrig.includes('藥物')) finalInstrument = '核醫藥物';
+            else if (iTitleOrig.includes('治療') || iPhaseOrig.includes('治療')) finalInstrument = '核醫治療';
+            else if (iTitleOrig.includes('造影') || iPhaseOrig.includes('造影')) finalInstrument = '核醫造影';
+        }
+
+        // 如果上述都沒有判定出，且有抓到 instrument (操作項目)，則直接使用
+        item.instrument = finalInstrument || (instrument && instrument !== '未知' ? instrument : '');
+
+        // 如果最後還是空的，給予預設值
+        if (!item.instrument) {
+            if (item.title.includes('一般診斷攝影') || item.title.includes('X-ray')) {
+                item.instrument = item.title.includes('第二季') ? '一般診斷攝影-第二季' : '一般診斷攝影-第一季';
+            } else {
+                item.instrument = 'X-ray';
+            }
         }
         // 放射線治療相關 (輔助)
         else if (iTitle.includes('LINAC') || iTitleOrig.includes('直線加速器')) item.instrument = 'LINAC';
@@ -158,7 +188,7 @@ function analyzeHTML(raw) {
 
         // --- 1.6 DOPS/Mini-CEX/CbD/Milestone/EPA/輔導紀錄 儀器別補充偵測 ---
         const isOverall = iTitleOrig.includes('整體實習成效');
-        const requiresInstrument = ['DOPS', 'Mini-CEX', 'CbD', 'Milestone', 'EPA', '單站評量', '基礎課程', '輔導紀錄'].includes(item.type) && !isOverall;
+        const requiresInstrument = ['DOPS', 'Mini-CEX', 'CbD', 'EPA', '單站評量', '基礎課程', '輔導紀錄'].includes(item.type) && !isOverall;
         // 允許從全文搜尋中優化儀器別 (特別是當標題只拿到大類 X-ray 或 Special 但全文有 季別 或 骨密 時)
         const isGeneric = !item.instrument || ['X-RAY', 'GENERAL', '影像學', 'SPECIAL'].includes(item.instrument.toUpperCase());
         if (requiresInstrument && isGeneric) {
@@ -478,26 +508,20 @@ function analyzeHTML(raw) {
         }
 
 
-        // --- EPA OPA 分數提取 (修正版) ---
+        // --- EPA OPA 分數與回饋提取 ---
         if (item.type === 'EPA') {
-            // 使用「整體任務」分割區塊，解決 Regex 匹配問題
-            // 注意：doc 已經是 parse 過的 DOM，但這裡我們用 raw string 做分割可能比較保險，或者直接用 DOM
-            // 由於 EPA 結構複雜，維持使用 raw string 分割法 (Python 驗證成功)
             let opaBlocks = raw.split(/整體任務[：:]/i);
-            // OPA1~3
             for (let i = 1; i <= 3; i++) {
                 if (opaBlocks[i]) {
-                    // 放寬 Regex 範圍 ({0,500}) 並支援多種分數格式
+                    // 1. 提取分數 (Label 方式)
                     let checkedMatch = opaBlocks[i].match(/checked[\s\S]{0,500}?<label[^>]*>\s*(N\/A|[1-5]|[2-3][abc])\s*<\/label>/i);
                     if (checkedMatch) {
                         item.opaScores['opa' + i] = checkedMatch[1].trim();
-                    } else {
-                        // 嘗試找 input value (備用)
-                        let valMatch = opaBlocks[i].match(/checked[\s\S]{0,100}?value="([^"]+)"/i);
-                        if (valMatch) {
-                            // 嘗試將 value 代碼轉換 (如果需要) - 但目前觀察 value 也是亂碼或 ID，直接顯示可能沒意義
-                            // 這裡保留空值，依賴 Label 匹配
-                        }
+                    }
+                    // 2. 提取質性回饋 (Textarea 方式)
+                    let feedbackMatch = opaBlocks[i].match(/<textarea[^>]*>([\s\S]*?)<\/textarea>/i);
+                    if (feedbackMatch) {
+                        item.opaFeedbacks['opa' + i] = feedbackMatch[1].trim();
                     }
                 }
             }
@@ -546,6 +570,45 @@ function analyzeHTML(raw) {
             if (totalCount > 0) {
                 item.scoreRaw = `${passedCount}/${totalCount} <span class="text-[0.5em] font-sans">通過</span>`;
             }
+        }
+
+        // --- 1.2 里程碑 (Milestone) 細項解析 (DOM 方式) ---
+        if (item.type === 'Milestone') {
+            let formGroups = doc.querySelectorAll('.form-group');
+            let currentCategory = ''; // 用於跨區塊存儲大項標題
+
+            formGroups.forEach(group => {
+                // 1. 偵測大項標題 (例如 "一、醫學影像及放射科學知識 1：放射診斷造影相關知識能力")
+                let headerEl = group.querySelector('label.bg-info p') || group.querySelector('label.bg-info');
+                if (headerEl) {
+                    let headerText = headerEl.innerText.trim();
+                    // 簡化標題：僅保留大標題 (一、... 1)
+                    headerText = headerText.split('：')[0].split(':')[0].trim();
+
+                    // 檢查是否屬於 12 大指標之一
+                    TARGET_MILESTONES.forEach(target => {
+                        if (headerText.includes(target) || target.includes(headerText)) {
+                            currentCategory = target;
+                        }
+                    });
+                }
+
+                // 2. 偵測選中的 Level 等級 (僅存入 milestoneLevels，不重複存入 stationScores)
+                let checkedInput = group.querySelector('input[type="radio"]:checked');
+
+                if (checkedInput && currentCategory) {
+                    let statusLabel = group.querySelector(`label[for="${checkedInput.id}"]`);
+                    if (statusLabel) {
+                        let status = statusLabel.innerText.trim();
+                        // 提取數字部分 (例如 "Level 2" -> "2")
+                        let levelMatch = status.match(/Level\s*(\d)/i) || status.match(/(\d)/);
+                        if (levelMatch) {
+                            item.milestoneLevels[currentCategory] = levelMatch[1];
+                        }
+                    }
+                }
+            });
+            item.scoreRaw = ''; // 重置總分，里程碑不顯示總分
         }
 
         // --- 5. 回饋內容完整提取 (改用 DOM 遍歷以確保抓取所有符合條件的欄位) ---

@@ -76,6 +76,8 @@ function renderCards() {
 
                     ${d.stationScores.length > 0 ? `<div class="summary-grid mb-4">${d.stationScores.map(s => `<div class="summary-item"><span class="summary-label">${s.label}</span><span class="summary-val">${s.value}</span></div>`).join('')}</div>` : ''}
 
+                    ${d.type === 'Milestone' && d.milestoneLevels && Object.keys(d.milestoneLevels).length > 0 ? `<div class="summary-grid mb-4">${Object.entries(d.milestoneLevels).map(([label, level]) => `<div class="summary-item"><span class="summary-label">${label}</span><span class="summary-val">Level ${level}</span></div>`).join('')}</div>` : ''}
+
                     <div class="feedback-container">
                         ${d.feedbacks.map(fb => `<div class="feedback-item ${fb.type === 'student' ? 'fb-student' : 'fb-teacher'}"><span class="fb-label">${fb.label}</span>${fb.content}</div>`).join('')}
                     </div>
@@ -90,7 +92,7 @@ function getFilteredData() {
     let d = historyData;
     if (currentFilter === 'Summary') d = d.filter(i => i.type === '實習總評量表');
     if (currentFilter === 'Feedback') d = d.filter(i => i.type === '學員回饋單');
-    if (currentFilter === 'DOPS') d = d.filter(i => i.type === '單站評量' || i.type === 'DOPS/mini-CEX/CbD');
+    if (currentFilter === 'DOPS') d = d.filter(i => ['單站評量', 'DOPS', 'Mini-CEX', 'CbD', 'EPA', 'Milestone', '基礎課程'].includes(i.type));
     if (currentStudentFilter !== 'all') d = d.filter(i => i.studentName === currentStudentFilter);
     if (currentDeptFilter !== 'all') d = d.filter(i => i.department === currentDeptFilter);
     return d;
@@ -107,12 +109,35 @@ function clearHistory() { historyData = []; updateFilterOptions(); hideModal(); 
 function deleteItem(id) { historyData = historyData.filter(i => i.id !== id); updateFilterOptions(); renderCards(); }
 function exportToCSV() {
     if (historyData.length === 0) return;
-    // 欄位名稱與 v26.2 評量展示助手相容 (v5.2 新增儀器別)
-    let hs = ["執行日期", "學員姓名", "教師/主持人", "類型", "科別", "表單標題", "總分", "OPA1", "OPA2", "OPA3", "各站成績", "表現良好項目", "建議加強項目", "學員回饋意見", "訓練別編號", "儀器別"];
+    // 欄位名稱與 評量展示助手 v1.0 完全相容
+    const milestoneHeaders = [
+        "一、醫學影像及放射科學知識 1",
+        "一、醫學影像及放射科學知識 2",
+        "二、醫病關係及團隊溝通能力 1",
+        "二、醫病關係及團隊溝通能力 2",
+        "三、病人照護 1",
+        "三、病人照護 2",
+        "三、病人照護 3",
+        "三、病人照護 4",
+        "三、病人照護 5",
+        "四、提升本職技能 1",
+        "五、專業素養 1",
+        "五、專業素養 2"
+    ];
+
+    let hs = [
+        "執行日期", "學員姓名", "教師/主持人", "類型", "科別", "表單標題", "總分",
+        "OPA1", "OPA1回饋", "OPA2", "OPA2回饋", "OPA3", "OPA3回饋",
+        "表現良好項目", "建議加強項目", "學員回饋意見", "訓練別編號", "儀器別", "各站成績",
+        ...milestoneHeaders
+    ];
+
     let rows = [hs.join(',')];
+
     historyData.forEach(i => {
         let stationText = i.stationScores.map(s => s.label + ':' + s.value).join('; ');
-        // 分離回饋內容為三個欄位
+
+        // 分離回饋內容
         let feedbackGood = '';
         let feedbackNeeds = '';
         let studentFeedback = '';
@@ -121,13 +146,14 @@ function exportToCSV() {
             else if (f.label.includes('加強') || f.label.includes('改善')) feedbackNeeds = f.content;
             else if (f.label.includes('學員') || f.label.includes('心得')) studentFeedback = f.content;
         });
-        // EPA 與 Milestone 不輸出總分
+
+        // 總分輸出
         let scoreOutput = (i.type === 'EPA' || i.type === 'Milestone' || i.title.toUpperCase().includes('EPA') || i.title.toUpperCase().includes('里程碑')) ? '' : i.scoreRaw;
-        // OPA 分數 (EPA專用)
-        let opa1 = i.opaScores ? i.opaScores.opa1 : '';
-        let opa2 = i.opaScores ? i.opaScores.opa2 : '';
-        let opa3 = i.opaScores ? i.opaScores.opa3 : '';
-        rows.push([
+
+        // 里程碑等級欄位資料
+        let mLevels = milestoneHeaders.map(h => i.milestoneLevels ? (i.milestoneLevels[h] || '') : '');
+
+        let rowData = [
             i.date,
             i.studentName,
             i.teacherName,
@@ -135,19 +161,25 @@ function exportToCSV() {
             i.department,
             i.title,
             scoreOutput,
-            opa1,
-            opa2,
-            opa3,
-            stationText,
+            i.opaScores ? i.opaScores.opa1 : '',
+            i.opaFeedbacks ? i.opaFeedbacks.opa1 : '',
+            i.opaScores ? i.opaScores.opa2 : '',
+            i.opaFeedbacks ? i.opaFeedbacks.opa2 : '',
+            i.opaScores ? i.opaScores.opa3 : '',
+            i.opaFeedbacks ? i.opaFeedbacks.opa3 : '',
             feedbackGood,
             feedbackNeeds,
             studentFeedback,
-            i.department, // 訓練別編號 -> 使用科別
-            i.instrument // 儀器別
-        ].map(v => `"${(v || '').toString().replace(/"/g, '""').replace(/\n/g, ' ').replace(/\r/g, '')}"`).join(','));
+            i.department, // 訓練別編號
+            i.instrument, // 儀器別
+            stationText,
+            ...mLevels
+        ];
+
+        rows.push(rowData.map(v => `"${(v || '').toString().replace(/"/g, '""').replace(/\n/g, ' ').replace(/\r/g, '')}"`).join(','));
     });
     const b = new Blob(["\ufeff" + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const l = document.createElement("a"); l.href = URL.createObjectURL(b); l.download = `ePortfolio_Export_v1.1.csv`; l.click();
+    const l = document.createElement("a"); l.href = URL.createObjectURL(b); l.download = `ePortfolio_Export_v1.2.csv`; l.click();
 }
 // 處理拖曳事件（僅支援檔案）
 function handleDrop(e) {
