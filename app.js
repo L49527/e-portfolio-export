@@ -22,12 +22,77 @@ async function handleFiles(files) {
     if (!files || files.length === 0) return;
     document.getElementById('progressOverlay').classList.remove('hidden');
     for (let i = 0; i < files.length; i++) {
-        const text = await files[i].text();
-        const result = analyzeHTML(text);
-        if (result) historyData.push(result);
+        try {
+            const file = files[i];
+            const text = await file.text();
+            
+            if (file.name.toLowerCase().endsWith('.csv')) {
+                const results = parseCSV(text);
+                if (results && results.length > 0) {
+                    historyData.push(...results);
+                }
+            } else {
+                const result = analyzeHTML(text);
+                if (result) historyData.push(result);
+            }
+        } catch (err) {
+            console.error('Error processing file:', files[i].name, err);
+        }
+        
         document.getElementById('progressBar').style.width = ((i + 1) / files.length * 100) + '%';
     }
     document.getElementById('progressOverlay').classList.add('hidden'); updateFilterOptions(); renderCards();
+}
+
+function parseCSV(text) {
+    const lines = text.split(/\r?\n/);
+    if (lines.length < 2) return [];
+    
+    const results = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        // 更穩健的 CSV 解析：僅在引號外分割逗號，並保留欄位內的空格
+        const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/^"|"$/g, ''));
+        
+        if (cols.length < 7) continue;
+        
+        const [status, target, paperName, teacher, student, date, score] = cols;
+        if (!student || !date) continue; // 基本校驗
+
+        let instrument = '';
+        const combinedText = ((target || '') + ' ' + (paperName || '')).toUpperCase();
+        if (combinedText.includes('基礎課程')) instrument = '基礎課程';
+        else if (combinedText.includes('學前總評估')) instrument = '學前總評估';
+        else if (combinedText.includes('學後總評估')) instrument = '學後總評估';
+        else if (combinedText.includes('磁振')) instrument = 'MRI';
+        else if (combinedText.includes('一般診斷')) instrument = 'X-ray';
+        else if (combinedText.includes('乳房')) instrument = 'Mammo';
+        else if (combinedText.includes('電腦斷層')) instrument = 'CT';
+        else if (combinedText.includes('血管')) instrument = 'Angio';
+        else if (combinedText.includes('超音波')) instrument = 'Echo';
+        else if (combinedText.includes('核子醫學')) instrument = '核子醫學';
+        else if (combinedText.includes('放射治療')) instrument = '放射治療';
+        else if (combinedText.includes('心導管')) instrument = '心導管';
+
+        results.push({
+            id: 'csv-' + Math.random().toString(36).substr(2, 9),
+            type: '筆試成績',
+            department: (target || '').includes('科') ? target.split('-').pop() : '影像醫學科',
+            title: paperName || '未命名測驗',
+            date: date || '1900-01-01',
+            scoreRaw: score || '0',
+            studentName: student || '未知',
+            teacherName: teacher || '未註明',
+            instrument: instrument,
+            stationScores: [],
+            feedbacks: [],
+            milestoneLevels: {}
+        });
+    }
+    return results;
 }
 
 function renderCards() {
@@ -42,7 +107,7 @@ function renderCards() {
                     <div class="flex justify-between items-start gap-4 mb-4">
                         <div class="flex-1">
                             <div class="flex items-center gap-3 mb-2 text-xs">
-                                <span class="font-black px-2 py-0.5 rounded bg-slate-800 text-white shadow-sm">${d.type}</span>
+                                <span class="font-black px-2 py-0.5 rounded ${d.type === '筆試成績' ? 'bg-amber-600' : 'bg-slate-800'} text-white shadow-sm">${d.type}</span>
                                 ${d.instrument ? `<span class="font-black px-2 py-0.5 rounded bg-cyan-700 text-white shadow-sm">${d.instrument}</span>` : ''}
                                 <span class="font-bold text-slate-500 font-mono">${d.date}</span>
                                 <span class="font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded border border-rose-100">學員：${d.studentName}</span>
@@ -84,13 +149,14 @@ function renderCards() {
                 </div>`).join('');
 }
 
-function setFilter(f) { currentFilter = f; document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active-filter')); document.getElementById('f_' + (f === 'Summary' ? 'summary' : f === 'Feedback' ? 'feedback' : f === 'DOPS' ? 'dops' : 'all')).classList.add('active-filter'); renderCards(); }
+function setFilter(f) { currentFilter = f; document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active-filter')); document.getElementById('f_' + (f === 'Summary' ? 'summary' : f === 'Test' ? 'test' : f === 'Feedback' ? 'feedback' : f === 'DOPS' ? 'dops' : 'all')).classList.add('active-filter'); renderCards(); }
 function setStudentFilter(val) { currentStudentFilter = val; renderCards(); }
 function setDeptFilter(val) { currentDeptFilter = val; renderCards(); }
 function toggleSort() { sortDirection = sortDirection === 'desc' ? 'asc' : 'desc'; document.getElementById('sortText').innerText = sortDirection === 'desc' ? '日期：新到舊' : '日期：舊到新'; renderCards(); }
 function getFilteredData() {
     let d = historyData;
     if (currentFilter === 'Summary') d = d.filter(i => i.type === '實習總評量表');
+    if (currentFilter === 'Test') d = d.filter(i => i.type === '筆試成績');
     if (currentFilter === 'Feedback') d = d.filter(i => i.type === '學員回饋單');
     if (currentFilter === 'DOPS') d = d.filter(i => ['單站評量', 'DOPS', 'Mini-CEX', 'CbD', 'EPA', 'Milestone', '基礎課程'].includes(i.type));
     if (currentStudentFilter !== 'all') d = d.filter(i => i.studentName === currentStudentFilter);
@@ -208,7 +274,7 @@ window.onload = function () {
             return;
         }
 
-        const allFiles = Array.from(files).filter(f => f.name.match(/\.(html|htm)$/i));
+        const allFiles = Array.from(files).filter(f => f.name.match(/\.(html|htm|csv)$/i));
         console.log('Filtered HTML files:', allFiles.length);
 
         if (allFiles.length > 0) {

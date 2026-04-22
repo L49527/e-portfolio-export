@@ -126,7 +126,10 @@ function analyzeHTML(raw) {
 
         // 2. 如果階段判定為空，則使用全文字串判定 (標題 + 操作項目)
         if (!finalInstrument) {
-            if (iTitleOrig.includes('心導管') || iTitle.includes('CATH LAB')) finalInstrument = '心導管';
+            if (item.type === '基礎課程') finalInstrument = '基礎課程';
+            else if (iTitleOrig.includes('學前總評估')) finalInstrument = '學前總評估';
+            else if (iTitleOrig.includes('學後總評估')) finalInstrument = '學後總評估';
+            else if (iTitleOrig.includes('心導管') || iTitle.includes('CATH LAB')) finalInstrument = '心導管';
             else if (iTitleOrig.includes('模擬攝影') || iTitleOrig.includes('模擬定位')) finalInstrument = '模擬攝影';
             else if (iTitle.includes('PET/CT')) finalInstrument = 'PET/CT';
             else if (iTitle.includes('SPECT/CT')) finalInstrument = 'SPECT/CT';
@@ -616,7 +619,7 @@ function analyzeHTML(raw) {
             "臨床指導教師評估與回饋", "表現良好項目", "評估者回饋", "教師回饋意見", "教師回饋",
             "導師回應", "教學負責人回應", "負責人回應", "建議加強項目", "改善項目", "待加強",
             "對於如何增進實習效果的建議", "實習心得", "學員職前期許", "學生對實習醫院之建議",
-            "學生對學校之建議", "受評者回饋意見", "學員回饋", "學生其它建議"
+            "學生對學校之建議", "受評者回饋意見", "學員回饋", "學生其它建議", "訪談記錄", "導師意見"
         ];
 
         let allFormGroups = doc.querySelectorAll('.form-group');
@@ -638,7 +641,7 @@ function analyzeHTML(raw) {
                         item.feedbacks.push({
                             label: displayLabel,
                             content: content,
-                            type: displayLabel.includes('教師') || displayLabel.includes('評核') || displayLabel.includes('導師') || displayLabel.includes('負責人') ? 'teacher' : 'student'
+                            type: displayLabel.includes('教師') || displayLabel.includes('評核') || displayLabel.includes('導師') || displayLabel.includes('負責人') || displayLabel.includes('訪談') ? 'teacher' : 'student'
                         });
                     }
                 }
