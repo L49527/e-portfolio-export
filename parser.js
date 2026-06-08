@@ -155,34 +155,36 @@ function analyzeHTML(raw) {
         // 如果上述都沒有判定出，且有抓到 instrument (操作項目)，則直接使用
         item.instrument = finalInstrument || (instrument && instrument !== '未知' ? instrument : '');
 
-        // 如果最後還是空的，給予預設值
+        // 如果前面的判定仍然沒有結果，再透過標題輔助判定
         if (!item.instrument) {
-            if (item.title.includes('一般診斷攝影') || item.title.includes('X-ray')) {
-                item.instrument = item.title.includes('第二季') ? '一般診斷攝影-第二季' : '一般診斷攝影-第一季';
-            } else {
-                item.instrument = 'X-ray';
+            // 放射線治療相關 (輔助)
+            if (iTitle.includes('LINAC') || iTitleOrig.includes('直線加速器')) item.instrument = 'LINAC';
+            else if (iTitle.includes('TOMO') || iTitleOrig.includes('螺旋斷層')) item.instrument = 'TomoTherapy';
+            else if (iTitle.includes('BRACHY') || iTitleOrig.includes('近接')) item.instrument = 'Brachytherapy';
+            else if (iTitle.includes('CYBER') || iTitleOrig.includes('電腦刀')) item.instrument = 'CyberKnife';
+            else if (iTitle.includes('GAMMA KNIFE') || iTitleOrig.includes('加馬刀') || iTitleOrig.includes('伽瑪刀')) item.instrument = 'Gamma Knife';
+            else if (iTitle.includes('PROTON') || iTitleOrig.includes('質子')) item.instrument = 'Proton';
+            // 碎石機
+            else if (iTitle.includes('LITHO') || iTitleOrig.includes('碎石') || iTitle.includes('ESWL')) item.instrument = 'Lithotripsy';
+            // 牙科
+            else if (iTitle.includes('DENTAL') || iTitleOrig.includes('牙') || iTitle.includes('PANO') || iTitle.includes('CEPH')) item.instrument = 'Dental';
+            // 一般攝影 / X光
+            else if (iTitle.includes('X-RAY') || iTitle.includes('XRAY') || iTitleOrig.includes('X光') || iTitleOrig.includes('一般攝影') || iTitleOrig.includes('一般診斷')) {
+                if (iTitleOrig.includes('第一季')) item.instrument = '一般診斷攝影-第一季';
+                else if (iTitleOrig.includes('第二季')) item.instrument = '一般診斷攝影-第二季';
+                else item.instrument = 'X-ray';
+            }
+            else if (iTitle.includes('GENERAL') || /\bCR\b/.test(iTitle) || /\bDR\b/.test(iTitle) || iTitle.includes('PORTABLE') || iTitleOrig.includes('移動式')) item.instrument = 'General';
+            else if (iTitleOrig.includes('放射醫學影像及儀器品保') || iTitleOrig.includes('放射醫學影像品保') || iTitleOrig.includes('影像學')) item.instrument = '影像學';
+            // 如果最後還是空的，給予預設值
+            else {
+                if (item.title.includes('一般診斷攝影') || item.title.includes('X-ray')) {
+                    item.instrument = item.title.includes('第二季') ? '一般診斷攝影-第二季' : '一般診斷攝影-第一季';
+                } else {
+                    item.instrument = 'X-ray';
+                }
             }
         }
-        // 放射線治療相關 (輔助)
-        else if (iTitle.includes('LINAC') || iTitleOrig.includes('直線加速器')) item.instrument = 'LINAC';
-        else if (iTitle.includes('TOMO') || iTitleOrig.includes('螺旋斷層')) item.instrument = 'TomoTherapy';
-        else if (iTitle.includes('BRACHY') || iTitleOrig.includes('近接')) item.instrument = 'Brachytherapy';
-        else if (iTitle.includes('CYBER') || iTitleOrig.includes('電腦刀')) item.instrument = 'CyberKnife';
-        else if (iTitle.includes('GAMMA KNIFE') || iTitleOrig.includes('加馬刀') || iTitleOrig.includes('伽瑪刀')) item.instrument = 'Gamma Knife';
-        else if (iTitle.includes('PROTON') || iTitleOrig.includes('質子')) item.instrument = 'Proton';
-        // 碎石機
-        else if (iTitle.includes('LITHO') || iTitleOrig.includes('碎石') || iTitle.includes('ESWL')) item.instrument = 'Lithotripsy';
-        // 牙科
-        else if (iTitle.includes('DENTAL') || iTitleOrig.includes('牙') || iTitle.includes('PANO') || iTitle.includes('CEPH')) item.instrument = 'Dental';
-        // 一般攝影 / X光
-        else if (iTitle.includes('X-RAY') || iTitle.includes('XRAY') || iTitleOrig.includes('X光') || iTitleOrig.includes('一般攝影') || iTitleOrig.includes('一般診斷')) {
-            if (iTitleOrig.includes('第一季')) item.instrument = '一般診斷攝影-第一季';
-            else if (iTitleOrig.includes('第二季')) item.instrument = '一般診斷攝影-第二季';
-            else item.instrument = 'X-ray';
-        }
-        else if (iTitle.includes('GENERAL') || /\bCR\b/.test(iTitle) || /\bDR\b/.test(iTitle) || iTitle.includes('PORTABLE') || iTitleOrig.includes('移動式')) item.instrument = 'General';
-        else if (iTitleOrig.includes('放射醫學影像品保') || iTitleOrig.includes('影像學')) item.instrument = '影像學';
-        else { item.instrument = ''; }
 
         // 特別排除：整體實習成效不用套儀器別
         if (iTitleOrig.includes('整體實習成效')) {
@@ -232,7 +234,7 @@ function analyzeHTML(raw) {
             else if (fullText.includes('乳房攝影') || fullText.includes('乳攝') || /\bMAMMO\b/.test(fullText)) item.instrument = 'Mammo';
             else if (fullText.includes('透視') || fullText.includes('鋇劑') || /\bFLUORO\b/.test(fullText)) item.instrument = 'Fluoro';
             else if (fullText.includes('超音波') || /\bECHO\b/.test(fullText) || /\bSONO\b/.test(fullText)) item.instrument = 'Echo';
-            else if (fullText.includes('放射醫學影像品保') || fullText.includes('影像學')) item.instrument = '影像學';
+            else if (fullText.includes('放射醫學影像及儀器品保') || fullText.includes('放射醫學影像品保') || fullText.includes('影像學')) item.instrument = '影像學';
             else if (fullText.includes('興趣加選')) item.instrument = '興趣加選';
             else if (/\bCR\b/.test(fullText) || /\bDR\b/.test(fullText)) item.instrument = 'General';
         }
@@ -253,8 +255,8 @@ function analyzeHTML(raw) {
             else if (d.includes('放射治療') || d.includes('放射腫瘤')) item.department = '放射治療科';
 
             // v1.1: 從階段/子階段提取儀器別 (優先於標題判定，允许覆盖通用类型)
-            // 定義通用類型，如果目前判斷的是這些，允許被階段欄位覆寫 (例如全文有X光室導致被判成 X-ray，但階段寫 MRI)
-            const isGenericTypes = ['X-RAY', 'GENERAL', '影像學', 'SPECIAL', 'X-RAY'];
+            // 注意：'影像學' 不列為通用型別，以防止其正確分類被覆寫
+            const isGenericTypes = ['X-RAY', 'GENERAL', 'SPECIAL'];
             if (!item.instrument || item.instrument === '' || isGenericTypes.includes(item.instrument.toUpperCase())) {
                 // 放射治療相關
                 if (d.includes('模擬攝影') || d.includes('模擬定位')) item.instrument = '模擬攝影';
@@ -308,7 +310,13 @@ function analyzeHTML(raw) {
             }
         }
 
-        // --- 3. 師生名稱提取 (排除主持人) ---
+        // --- 最終強制覆蓋：僅针對「放射醫學影像及儀器品保」子階段 ---
+        // 這個判定最後執行，覆蓋所有其他判定結果。
+        // 做法：直接檢查 iPhaseOrig 是否含有「放射醫學影像及儀器品保」，有則強制設為 '影像學'
+        if (iPhaseOrig.includes('放射醫學影像及儀器品保')) {
+            item.instrument = '影像學';
+        }
+
         // 學員姓名 - 使用通用模式
         // 方法1: 從流程中抓取 (學員) 標記
         let flowStudentMatch = cleanText.match(/([\u4e00-\u9fa5]{2,10})\s*\(學員\)/);

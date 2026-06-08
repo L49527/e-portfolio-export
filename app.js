@@ -245,14 +245,66 @@ function exportToCSV() {
         rows.push(rowData.map(v => `"${(v || '').toString().replace(/"/g, '""').replace(/\n/g, ' ').replace(/\r/g, '')}"`).join(','));
     });
     const b = new Blob(["\ufeff" + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const l = document.createElement("a"); l.href = URL.createObjectURL(b); l.download = `ePortfolio_Export_v1.2.csv`; l.click();
+
+    const firstStudent = historyData[0].studentName || '未知';
+    const dates = historyData.map(i => i.date).filter(Boolean).sort();
+    const startDate = dates[0] ? dates[0].replace(/-/g, '') : '';
+    const endDate = dates[dates.length - 1] ? dates[dates.length - 1].replace(/-/g, '') : '';
+    const safeName = firstStudent.replace(/[\/\\:*?"<>|]/g, '_');
+    const fileName = startDate && endDate ? `${safeName}_${startDate}~${endDate}.csv` : `${safeName}.csv`;
+
+    const l = document.createElement("a"); l.href = URL.createObjectURL(b); l.download = fileName; l.click();
 }
-// 處理拖曳事件（僅支援檔案）
+// 處理拖曳事件（支援檔案與資料夾）
 function handleDrop(e) {
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-        handleFiles(files);
+    const items = e.dataTransfer.items;
+    if (!items || items.length === 0) return;
+
+    const files = [];
+    const promises = [];
+
+    for (const item of items) {
+        const entry = item.webkitGetAsEntry();
+        if (entry) {
+            promises.push(traverseEntry(entry, files));
+        }
     }
+
+    Promise.all(promises).then(() => {
+        if (files.length > 0) {
+            handleFiles(files);
+        }
+    });
+}
+
+// 遞迴遍歷檔案系統項目（支援目錄）
+function traverseEntry(entry, fileList) {
+    return new Promise((resolve) => {
+        if (entry.isFile) {
+            entry.file((file) => {
+                if (file.name.match(/\.(html|htm|csv)$/i)) {
+                    fileList.push(file);
+                }
+                resolve();
+            });
+        } else if (entry.isDirectory) {
+            const reader = entry.createReader();
+            const entries = [];
+            const readEntries = () => {
+                reader.readEntries((results) => {
+                    if (results.length) {
+                        entries.push(...results);
+                        readEntries();
+                    } else {
+                        Promise.all(entries.map(e => traverseEntry(e, fileList))).then(resolve);
+                    }
+                });
+            };
+            readEntries();
+        } else {
+            resolve();
+        }
+    });
 }
 
 window.onload = function () {
